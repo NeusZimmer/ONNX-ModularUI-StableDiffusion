@@ -1,0 +1,1 @@
+{"MAINPipe_provider": "DmlExecutionProvider", "Scheduler_provider": "DmlExecutionProvider", "ControlNet_provider": "DmlExecutionProvider", "VAEDec_provider": "DmlExecutionProvider", "TEXTEnc_provider": "CPUExecutionProvider", "DeepDanBooru_provider": "CPUExecutionProvider"}
