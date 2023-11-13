@@ -1,0 +1,15 @@
+protobuf < 4.0
+torch
+numpy
+transformers
+diffusers
+ftfy
+spacy
+scipy
+safetensors
+gradio
+omegaconf
+onnx
+onnxconverter-common
+onnxruntime-directml
+opencv-python
