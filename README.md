@@ -50,9 +50,10 @@ Optional: download the onnx model of your preference and include it into the mod
 Sample model: "https://civitai.com/models/125580/onnx-base-set-of-model-neusz"
 (You will need to download the main model, the vae decoder, vae encoder and text encoder and put each one in the adequate subdir)
 
-Activate the environment and the run the UI:
-"activate.bat"
-"py -O ONNX-StableDiffusion.py"
+Activate the environment  ```activate.bat```
+and the run the UI: ```py -O ONNX-StableDiffusion.py```
+or ```run.bat```
+
 Point your browser to localhost:7860 to accessing the UI app and enjoy yourself...
 
 
