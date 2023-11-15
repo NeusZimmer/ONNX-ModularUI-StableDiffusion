@@ -96,7 +96,9 @@ class SchedulersConfig(Borg):
         self.selected_scheduler = None
         self._model_path = model_path
         self._scheduler_name = scheduler_name
-        provider = Engine_Configuration().Scheduler_provider
+        #provider = Engine_Configuration().Scheduler_provider
+        provider = Engine_Configuration().Scheduler_provider[provider]
+        provider_options=Engine_Configuration().Scheduler_provider[provider_options]
         """match scheduler_name:
             case "PNDM":
                 scheduler = PNDMScheduler.from_pretrained(model_path, subfolder="scheduler",provider=provider)
