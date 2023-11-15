@@ -39,6 +39,7 @@ class Engine_Configuration(Borg):
     Scheduler_provider="Not Selected"
     ControlNet_provider="Not Selected"
     VAEDec_provider="Not Selected"
+    VAEEnc_provider="Not Selected"
     TEXTEnc_provider="Not Selected"
     DeepDanBooru_provider="Not Selected"
 
@@ -48,10 +49,14 @@ class Engine_Configuration(Borg):
 
     def __str__(self): return json.dumps(self.__dict__)
 
+    def SetProvider(self,pipeline,diccionary):
+        setattr(self, pipeline, diccionary)
+        print(getattr(self, pipeline))
+
     def save_config_json(self):
         jsonStr = json.dumps(self.__dict__)
         #print(type(jsonStr))
-        with open("./Engine/config_files/EngineConfig.json", "w") as outfile:
+        with open("./Engine/config_files/EngineConfig_nueva.json", "w") as outfile:
             outfile.write(jsonStr)
         print("Saving information for pipelines providers")
         print(jsonStr)
@@ -59,21 +64,23 @@ class Engine_Configuration(Borg):
 
     def load_default_values(self):
         print("Loading default provider values:CPU")
-        self.MAINPipe_provider="CPUExecutionProvider"
-        self.Scheduler_provider="CPUExecutionProvider"	
-        self.ControlNet_provider="CPUExecutionProvider"
-        self.VAEDec_provider="CPUExecutionProvider"
-        self.TEXTEnc_provider="CPUExecutionProvider"
+        self.MAINPipe_provider={'provider':"CPUExecutionProvider",'provider_options':{"device_id": 0} }
+        self.Scheduler_provider={'provider':"CPUExecutionProvider",'provider_options':{"device_id": 0} }
+        self.ControlNet_provider={'provider':"CPUExecutionProvider",'provider_options':{"device_id": 0} }
+        self.VAEDec_provider={'provider':"CPUExecutionProvider",'provider_options':{"device_id": 0} }
+        self.VAEEnc_provider={'provider':"CPUExecutionProvider",'provider_options':{"device_id": 0} }
+        self.TEXTEnc_provider={'provider':"CPUExecutionProvider",'provider_options':{"device_id": 0} }
         self.DeepDanBooru_provider="CPUExecutionProvider"
     
     def load_config_json(self):
         try:
-            with open('./Engine/config_files/EngineConfig.json', 'r') as openfile:
+            with open('./Engine/config_files/EngineConfig_nueva.json', 'r') as openfile:
                 jsonStr = json.load(openfile)
                 self.MAINPipe_provider = jsonStr["MAINPipe_provider"]
                 self.Scheduler_provider = jsonStr["Scheduler_provider"]
                 self.ControlNet_provider = jsonStr["ControlNet_provider"]
                 self.VAEDec_provider = jsonStr["VAEDec_provider"]
+                self.VAEEnc_provider = jsonStr["VAEEnc_provider"]
                 self.TEXTEnc_provider = jsonStr["TEXTEnc_provider"]
                 self.DeepDanBooru_provider = jsonStr["DeepDanBooru_provider"]
         except OSError:
