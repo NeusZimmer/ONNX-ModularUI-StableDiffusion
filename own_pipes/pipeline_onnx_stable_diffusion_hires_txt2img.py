@@ -99,10 +99,11 @@ class OnnxOptimumStableDiffusionHiResPipeline(ORTStableDiffusionPipeline):
         model_save_dir: Optional[Union[str, Path, TemporaryDirectory]] = None,
         requires_safety_checker: bool = True,
         sess_options: Optional[ort.SessionOptions] = None,
+        provider_options: Optional[dict] = None,
         ):
 
 
-        unet_session = ORTModel.load_model(model_path+"/unet/model.onnx", provider,sess_options, provider_options={'device_id': 0})
+        unet_session = ORTModel.load_model(model_path+"/unet/model.onnx", provider,sess_options, provider_options=provider_options)
 
         CONFIG_NAME="model_index.json"
         config_file=model_path+"/"+CONFIG_NAME
