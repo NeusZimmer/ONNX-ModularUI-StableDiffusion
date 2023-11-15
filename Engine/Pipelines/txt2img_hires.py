@@ -48,10 +48,13 @@ class txt2img_hires_pipe(Borg10):
                 Vae_and_Text_Encoders().load_vaeencoder(model_path)
 
 
-            if " " in Engine_Configuration().MAINPipe_provider:
+            """if " " in Engine_Configuration().MAINPipe_provider:
                 provider =eval(Engine_Configuration().MAINPipe_provider)
             else:
-                provider =Engine_Configuration().MAINPipe_provider
+                provider =Engine_Configuration().MAINPipe_provider"""
+            
+            provider=Engine_Configuration().MAINPipe_provider['provider']
+            provider_options=Engine_Configuration().MAINPipe_provider['provider_options']
 
             self.hires_pipe = OnnxOptimumStableDiffusionHiResPipeline(
             #self.hires_pipe = OnnxOptimumStableDiffusionHiResPipeline.from_pretrained(
@@ -61,7 +64,8 @@ class txt2img_hires_pipe(Borg10):
                 text_encoder_session=Vae_and_Text_Encoders().text_encoder,
                 vae_decoder_session=Vae_and_Text_Encoders().vae_decoder,
                 vae_encoder_session=Vae_and_Text_Encoders().vae_encoder,
-                sess_options=sess_options
+                sess_options=sess_options,
+                provider_options=provider_options
             )
         else:
             self.hires_pipe.scheduler=SchedulersConfig().scheduler(sched_name,model_path)

@@ -31,13 +31,16 @@ class txt2img_pipe(Borg3):
     def reinitialize(self,model_path):
         from Engine.General_parameters import Engine_Configuration as en_config
 
-        if " " in Engine_Configuration().MAINPipe_provider:
+        """if " " in Engine_Configuration().MAINPipe_provider:
             provider =eval(Engine_Configuration().MAINPipe_provider)
         else:
-            provider =Engine_Configuration().MAINPipe_provider
+            provider =Engine_Configuration().MAINPipe_provider"""
 
+        provider=Engine_Configuration().MAINPipe_provider['provider']
+        provider_options=Engine_Configuration().MAINPipe_provider['provider_options']
 
         unet_path=model_path+"/unet"
+        #self.txt2img_pipe.unet = OnnxRuntimeModel.from_pretrained(unet_path,provider=provider,provider_options=provider_options)
         self.txt2img_pipe.unet = OnnxRuntimeModel.from_pretrained(unet_path,provider=provider)
 
         import functools
@@ -86,10 +89,14 @@ class txt2img_pipe(Borg3):
         if Vae_and_Text_Encoders().vae_decoder == None:
             Vae_and_Text_Encoders().load_vaedecoder(model_path)
 
-        if " " in Engine_Configuration().MAINPipe_provider:
+        """if " " in Engine_Configuration().MAINPipe_provider:
             provider =eval(Engine_Configuration().MAINPipe_provider)
         else:
-            provider =Engine_Configuration().MAINPipe_provider
+            provider =Engine_Configuration().MAINPipe_provider"""
+
+
+        provider=Engine_Configuration().MAINPipe_provider['provider']
+        provider_options=Engine_Configuration().MAINPipe_provider['provider_options']
 
         if self.txt2img_pipe == None:
             import onnxruntime as ort
@@ -100,13 +107,13 @@ class txt2img_pipe(Borg3):
             self.txt2img_pipe = ORTStableDiffusionPipeline.from_pretrained(
                 model_path,
                 provider=provider,
-                
                 vae_decoder_session= Vae_and_Text_Encoders().vae_decoder,
                 text_encoder_session= Vae_and_Text_Encoders().text_encoder,
                 text_encoder=Vae_and_Text_Encoders().text_encoder,
                 vae_decoder=Vae_and_Text_Encoders().vae_decoder,
                 vae_encoder=None,
-                sess_options=sess_options
+                sess_options=sess_options,
+                provider_options=provider_options
             )
             self.txt2img_pipe.scheduler=SchedulersConfig().scheduler(sched_name,model_path)
 
