@@ -8,34 +8,36 @@ debug = False
 def show_providers_configuration():
     with gr.Blocks(title="ONNX Difussers UI-2") as test:
         own_code="{'device_id': 1}"
+        Engine_Config=Engine_Configuration()
         with gr.Accordion(label="Select which provider will load&execute each process/pipeline",open=False):
             gr.Markdown("Device provider options(dict), i.e. a python dict {'device_id': 1} will select the 2nd device provider, for 2 GPUs available")
             with gr.Row():
-                MAINPipe_Select=gr.Radio(ort.get_available_providers(), label="MAINPipes provider", info="Where to load the main pipes",value="CPUExecutionProvider")
-                MAINPipe_own_code=gr.Textbox(label="Pipeline provider",info="Device provider options(dict)",lines=1, value=own_code, visible=True, interactive=True)
+                MAINPipe_Select=gr.Radio(ort.get_available_providers(),
+                                        label="MAINPipes provider", info="Where to load the main pipes",value=Engine_Config.MAINPipe_provider['provider'])
+                MAINPipe_own_code=gr.Textbox(label="Pipeline provider",info="Device provider options(dict)",lines=1, value=Engine_Config.MAINPipe_provider['provider_options'], visible=True, interactive=True)
                 #MAINPipe_Select.change(fn=Generic_Select_OwnCode,inputs=MAINPipe_Select,outputs=MAINPipe_own_code)
             with gr.Row():
-                Sched_Select=gr.Radio(ort.get_available_providers(), label="Scheduler provider", info="Where to load the schedulers",value="CPUExecutionProvider")
-                Sched_own_code=gr.Textbox(label="Pipeline provider",info="Device provider options(dict)",lines=1, value=own_code, visible=True)
+                Sched_Select=gr.Radio(ort.get_available_providers(), label="Scheduler provider", info="Where to load the schedulers",value=Engine_Config.Scheduler_provider['provider'])
+                Sched_own_code=gr.Textbox(label="Pipeline provider",info="Device provider options(dict)",lines=1, value=Engine_Config.Scheduler_provider['provider_options'], visible=True)
                 #Sched_Select.change(fn=Generic_Select_OwnCode,inputs=Sched_Select,outputs=Sched_own_code)
             with gr.Row():
-                ControlNet_Select=gr.Radio(ort.get_available_providers(), label="ControlNet provider", info="Where to load ControlNet",value="CPUExecutionProvider")
-                ControlNet_own_code=gr.Textbox(label="Pipeline provider",info="Device provider options(dict)",lines=1, value=own_code, visible=True)
+                ControlNet_Select=gr.Radio(ort.get_available_providers(), label="ControlNet provider", info="Where to load ControlNet",value=Engine_Config.ControlNet_provider['provider'])
+                ControlNet_own_code=gr.Textbox(label="Pipeline provider",info="Device provider options(dict)",lines=1, value=Engine_Config.ControlNet_provider['provider_options'], visible=True)
                 #ControlNet_Select.change(fn=Generic_Select_OwnCode,inputs=ControlNet_Select,outputs=ControlNet_own_code)
             with gr.Row():
-                VAEDec_Select=gr.Radio(ort.get_available_providers(), label="VAEDecoder provider", info="Where to load the VAE Decoder",value="CPUExecutionProvider")
-                VAEDec_own_code=gr.Textbox(label="Pipeline provider",info="Device provider options(dict)",lines=1, value=own_code, visible=True)
+                VAEDec_Select=gr.Radio(ort.get_available_providers(), label="VAEDecoder provider", info="Where to load the VAE Decoder",value=Engine_Config.VAEDec_provider['provider'])
+                VAEDec_own_code=gr.Textbox(label="Pipeline provider",info="Device provider options(dict)",lines=1, value=Engine_Config.VAEDec_provider['provider_options'], visible=True)
                 #VAEDec_Select.change(fn=Generic_Select_OwnCode,inputs=VAEDec_Select,outputs=VAEDec_own_code)
             with gr.Row():
-                VAEEnc_Select=gr.Radio(ort.get_available_providers(), label="VAEEncoder provider", info="Where to load the VAE Encoder",value="CPUExecutionProvider")
-                VAEEnc_own_code=gr.Textbox(label="Pipeline provider",info="Device provider options(dict)",lines=1, value=own_code, visible=True)
+                VAEEnc_Select=gr.Radio(ort.get_available_providers(), label="VAEEncoder provider", info="Where to load the VAE Encoder",value=Engine_Config.VAEEnc_provider['provider'])
+                VAEEnc_own_code=gr.Textbox(label="Pipeline provider",info="Device provider options(dict)",lines=1, value=Engine_Config.VAEEnc_provider['provider_options'], visible=True)
                 #VAEDec_Select.change(fn=Generic_Select_OwnCode,inputs=VAEDec_Select,outputs=VAEDec_own_code)
             with gr.Row():
-                TEXTEnc_Select=gr.Radio(ort.get_available_providers(), label="TEXTEncoder provider", info="Where to load the Text Encoder",value="CPUExecutionProvider")
-                TEXTEnc_own_code=gr.Textbox(label="Pipeline provider",info="Device provider options(dict)",lines=1, value=own_code, visible=True)
+                TEXTEnc_Select=gr.Radio(ort.get_available_providers(), label="TEXTEncoder provider", info="Where to load the Text Encoder",value=Engine_Config.TEXTEnc_provider['provider'])
+                TEXTEnc_own_code=gr.Textbox(label="Pipeline provider",info="Device provider options(dict)",lines=1, value=Engine_Config.TEXTEnc_provider['provider_options'], visible=True)
                 #TEXTEnc_Select.change(fn=Generic_Select_OwnCode,inputs=TEXTEnc_Select,outputs=TEXTEnc_own_code)
             with gr.Row():
-                DeepDanbooru_Select=gr.Radio(ort.get_available_providers(), label="DeepDanbooru provider", info="Where to load DeepDanbooru queries",value="CPUExecutionProvider")
+                DeepDanbooru_Select=gr.Radio(ort.get_available_providers(), label="DeepDanbooru provider", info="Where to load DeepDanbooru queries",value=Engine_Config.DeepDanBooru_provider)
                 gr.Markdown("DeepDanbooru provider. If already loaded for a query, unload it to apply changes")
             with gr.Row():
                 apply_btn = gr.Button("Apply providers config", variant="primary")
