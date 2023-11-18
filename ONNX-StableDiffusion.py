@@ -15,7 +15,7 @@ def init_ui():
                 from UI import txt2img_ui as txt2img_ui
                 txt2img_ui.show_txt2img_ui()
         #if ui_config.Img2Img_Tab:
-        if False:            
+        if True:            
             with gr.Tab(label="Img2Img") as tab1:
                 from UI import Img2Img_ui
                 Img2Img_ui.show_Img2Img_ui()
