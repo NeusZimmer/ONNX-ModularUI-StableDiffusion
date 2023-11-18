@@ -12,7 +12,8 @@ def show_providers_configuration():
         with gr.Accordion(label="Select which provider will load&execute each process/pipeline",open=False):
             gr.Markdown("Device provider options(dict), i.e. a python dict {'device_id': 1} will select the 2nd device provider, for 2 GPUs available")
             with gr.Row():
-                MAINPipe_Select=gr.Radio(ort.get_available_providers(), label="MAINPipes provider", info="Where to load the main pipes",value=Engine_Config.MAINPipe_provider['provider'])
+                MAINPipe_Select=gr.Radio(ort.get_available_providers(),
+                                        label="MAINPipes provider", info="Where to load the main pipes",value=Engine_Config.MAINPipe_provider['provider'])
                 MAINPipe_own_code=gr.Textbox(label="Pipeline provider",info="Device provider options(dict)",lines=1, value=Engine_Config.MAINPipe_provider['provider_options'], visible=True, interactive=True)
                 #MAINPipe_Select.change(fn=Generic_Select_OwnCode,inputs=MAINPipe_Select,outputs=MAINPipe_own_code)
             with gr.Row():
@@ -36,19 +37,24 @@ def show_providers_configuration():
                 TEXTEnc_own_code=gr.Textbox(label="Pipeline provider",info="Device provider options(dict)",lines=1, value=Engine_Config.TEXTEnc_provider['provider_options'], visible=True)
                 #TEXTEnc_Select.change(fn=Generic_Select_OwnCode,inputs=TEXTEnc_Select,outputs=TEXTEnc_own_code)
             with gr.Row():
+                LowResPipe_Select=gr.Radio(ort.get_available_providers(), label="Low Res Pipeline provider", info="Where to load the LowRes Model in HiRes pipeline",value=Engine_Config.LowResPipe_provider['provider'])
+                LowResPipe_own_code=gr.Textbox(label="Pipeline provider",info="Device provider options(dict)",lines=1, value=Engine_Config.LowResPipe_provider['provider_options'], visible=True)
+                #TEXTEnc_Select.change(fn=Generic_Select_OwnCode,inputs=TEXTEnc_Select,outputs=TEXTEnc_own_code)
+
+            with gr.Row():
                 DeepDanbooru_Select=gr.Radio(ort.get_available_providers(), label="DeepDanbooru provider", info="Where to load DeepDanbooru queries",value=Engine_Config.DeepDanBooru_provider)
                 gr.Markdown("DeepDanbooru provider. If already loaded for a query, unload it to apply changes")
             with gr.Row():
                 apply_btn = gr.Button("Apply providers config", variant="primary")
-                apply_btn.click(fn=apply_config, inputs=[MAINPipe_Select, MAINPipe_own_code,Sched_Select,Sched_own_code,ControlNet_Select,ControlNet_own_code, VAEDec_Select,VAEDec_own_code,TEXTEnc_Select,TEXTEnc_own_code,DeepDanbooru_Select,VAEEnc_Select,VAEEnc_own_code] , outputs=None)
+                apply_btn.click(fn=apply_config, inputs=[MAINPipe_Select, MAINPipe_own_code,Sched_Select,Sched_own_code,ControlNet_Select,ControlNet_own_code, VAEDec_Select,VAEDec_own_code,TEXTEnc_Select,TEXTEnc_own_code,DeepDanbooru_Select,VAEEnc_Select,VAEEnc_own_code,LowResPipe_Select,LowResPipe_own_code] , outputs=None)
                 save_btn = gr.Button("Save to config file", elem_id="test_button")
                 save_btn.click(fn=save_config_disk, inputs=None, outputs=None)
                 load_btn = gr.Button("Load from config file", elem_id="test_button")
-                load_btn.click(fn=load_config_disk, inputs=None, outputs=[MAINPipe_Select, MAINPipe_own_code,Sched_Select,Sched_own_code,ControlNet_Select,ControlNet_own_code, VAEDec_Select,VAEDec_own_code,TEXTEnc_Select,TEXTEnc_own_code,DeepDanbooru_Select, VAEEnc_Select,VAEEnc_own_code])
+                load_btn.click(fn=load_config_disk, inputs=None, outputs=[MAINPipe_Select, MAINPipe_own_code,Sched_Select,Sched_own_code,ControlNet_Select,ControlNet_own_code, VAEDec_Select,VAEDec_own_code,TEXTEnc_Select,TEXTEnc_own_code,DeepDanbooru_Select, VAEEnc_Select,VAEEnc_own_code,LowResPipe_Select,LowResPipe_own_code])
 
 
 def apply_config(MAINPipe_Select, MAINPipe_own_code,Sched_Select,Sched_own_code,ControlNet_Select,ControlNet_own_code, 
-VAEDec_Select,VAEDec_own_code,TEXTEnc_Select,TEXTEnc_own_code,DeepDanbooru_Select,VAEEnc_Select,VAEEnc_own_code):
+VAEDec_Select,VAEDec_own_code,TEXTEnc_Select,TEXTEnc_own_code,DeepDanbooru_Select,VAEEnc_Select,VAEEnc_own_code,LowResPipe_Select,LowResPipe_own_code):
     Engine_Config=Engine_Configuration()
     Engine_Config.SetProvider('MAINPipe_provider',get_provider_code('MAINPipe',MAINPipe_Select,MAINPipe_own_code))
     Engine_Config.SetProvider('Scheduler_provider',get_provider_code('Schedulers',Sched_Select,Sched_own_code))
@@ -56,6 +62,9 @@ VAEDec_Select,VAEDec_own_code,TEXTEnc_Select,TEXTEnc_own_code,DeepDanbooru_Selec
     Engine_Config.SetProvider('VAEDec_provider',get_provider_code('VaeDecoder',VAEDec_Select,VAEDec_own_code))
     Engine_Config.SetProvider('VAEEnc_provider',get_provider_code('VaeEncoder',VAEEnc_Select,VAEEnc_own_code))  #Asegurarnos que existe antes de activar la linea
     Engine_Config.SetProvider('TEXTEnc_provider',get_provider_code('TextEncoder',TEXTEnc_Select,TEXTEnc_own_code))
+    Engine_Config.SetProvider('LowResPipe_provider',get_provider_code('LowResPipe',LowResPipe_Select,LowResPipe_own_code))
+
+
     Engine_Config.DeepDanBooru_provider=DeepDanbooru_Select
     global debug
     if debug:
@@ -98,7 +107,9 @@ def load_config_disk():
     test11 = loaded.DeepDanBooru_provider
     test12 = loaded.VAEEnc_provider['provider']
     test13 = loaded.VAEEnc_provider['provider_options']
-    return test,test2,test3,test4,test5,test6,test7,test8,test9,test10,test11,test12,test13
+    test14 = loaded.LowResPipe_provider['provider']
+    test15 = loaded.LowResPipe_provider['provider_options']
+    return test,test2,test3,test4,test5,test6,test7,test8,test9,test10,test11,test12,test13,test14,test15
 
 
 def get_provider_code_old(Selection,OwnCode):    #Esta funcion es eliminable si no hay que modificar el retorno

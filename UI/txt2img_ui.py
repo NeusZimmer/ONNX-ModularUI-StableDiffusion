@@ -7,23 +7,34 @@ from Engine import pipelines_engines
 from UI import UI_common_funcs as UI_common
 from Engine import engine_common_funcs as Engine_common
 from PIL import Image, PngImagePlugin
-
+from modules.modules import preProcess_modules
+from UI import UI_placement_areas
 
 global next_prompt
 global processed_images
 processed_images=[]
 next_prompt=None
 
+global list_modules
+list_modules=[]
+list_modules=preProcess_modules().check_available_modules("txt2img")
+
+#def nada():
+#    pass
 
 def show_txt2img_ui():
+    global list_modules
     model_list = UI_common.get_model_list("txt2img")
     sched_list = get_schedulers_list()
     ui_config=UI_Configuration()
+
+    #Check if modules are in need to be processed and/or shown
+
     gr.Markdown("Start typing below and then click **Generate** to see the output.")
     with gr.Row(): 
         with gr.Column(scale=13, min_width=650):
             model_drop = gr.Dropdown(model_list, value=(model_list[0] if len(model_list) > 0 else None), label="model folder", interactive=True)
-
+            
             with gr.Accordion("Partial Reloads",open=False):
                 reload_vae_btn = gr.Button("VAE Decoder:Apply Changes & Reload")
                 reload_model_btn = gr.Button("Model:Apply new model & Fast Reload Pipe")
@@ -57,10 +68,11 @@ def show_txt2img_ui():
                 clear_btn = gr.Button("Cancel",variant="stop", elem_id="gen_button")
                 memory_btn = gr.Button("Release memory", elem_id="mem_button")
 
-            if ui_config.wildcards_activated:
-                from UI import styles_ui
-                styles_ui.show_styles_ui()
-                with gr.Accordion(label="Live Prompt & Wildcards for multiple iterations",open=False):
+
+            with gr.Accordion(label="Prompt Processing tools",open=False):
+
+                #if ui_config.wildcards_activated:
+                with gr.Accordion(label="Live Prompt for multiple iterations & Prompt pre-generation",open=False):
                     with gr.Row():
                         next_wildcard = gr.Textbox(value="",lines=4, label="Next Prompt", interactive=True)
                         discard = gr.Textbox(value="", label="Discard", visible=False, interactive=False)
@@ -68,6 +80,9 @@ def show_txt2img_ui():
                         wildcard_show_btn = gr.Button("Show next prompt", elem_id="wildcard_button")
                         wildcard_gen_btn = gr.Button("Regenerate next prompt", variant="primary", elem_id="wildcard_button")
                         wildcard_apply_btn = gr.Button("Use edited prompt", elem_id="wildcard_button")
+                #global list_modules
+                UI_placement_areas.show_prompt_preprocess_area(list_modules)
+
             with gr.Row():
                 image_out = gr.Gallery(value=None, label="output images")
 
@@ -83,6 +98,7 @@ def show_txt2img_ui():
                     #previous_btn = gr.Button("Previous", elem_id="gallery_button")
                     #next_btn = gr.Button("Next", elem_id="gallery_button")
   
+
     image_out.select(fn=get_select_index, inputs=[image_out,status_out], outputs=[Selected_image_index,Selected_image_status])
     delete_btn.click(fn=delete_selected_index, inputs=[Selected_image_index,status_out], outputs=[image_out,status_out])
     clear_btn.click(fn=UI_common.cancel_iteration,inputs=None,outputs=None)
@@ -99,10 +115,10 @@ def show_txt2img_ui():
     latents_experimental2.change(fn=_activate_latent_load, inputs=[latents_experimental2,name_of_latent], outputs= None)
     latent_to_img_btn.click(fn=_latent_to_img,inputs=None,outputs=None)
 
-    if ui_config.wildcards_activated:
-        wildcard_gen_btn.click(fn=gen_next_prompt, inputs=prompt_t0, outputs=[discard,next_wildcard])
-        wildcard_show_btn.click(fn=show_next_prompt, inputs=None, outputs=next_wildcard)
-        wildcard_apply_btn.click(fn=apply_prompt, inputs=next_wildcard, outputs=None)
+
+    wildcard_gen_btn.click(fn=gen_next_prompt, inputs=prompt_t0, outputs=[discard,next_wildcard])
+    wildcard_show_btn.click(fn=show_next_prompt, inputs=None, outputs=next_wildcard)
+    wildcard_apply_btn.click(fn=apply_prompt, inputs=next_wildcard, outputs=None)
 
 def _latent_to_img():
     import numpy as np
@@ -196,17 +212,10 @@ def get_schedulers_list():
 def select_scheduler(sched_name,model_path):
     return pipelines_engines.SchedulersConfig().scheduler(sched_name,model_path)
 
+
+
 def gen_next_prompt(prompt_t0,initial=False):
     global next_prompt
-    Running_information= running_config().Running_information    
-    style=Running_information["Style"]
-
-    style_pre =""
-    style_post=""
-    if style:
-        styles=style.split("|")
-        style_pre =styles[0]
-        style_post=styles[1]
 
     if (initial):
         next_prompt=None
@@ -215,22 +224,31 @@ def gen_next_prompt(prompt_t0,initial=False):
         if (next_prompt != None):
             prompt=next_prompt
         else:
-            prompt=wildcards_process(prompt_t0)
+            #prompt=wildcards_process(prompt_t0)
+            prompt=process_prompt(prompt_t0)
 
-        next_prompt=wildcards_process(prompt_t0)
-    prompt = style_pre+" " +prompt+" " +style_post
-    #print(f"Prompt:{prompt}")
+        next_prompt=process_prompt(prompt_t0)
     return prompt,next_prompt
 
 def apply_prompt(prompt):
     global next_prompt
     next_prompt=prompt
 
-def wildcards_process(prompt):
+def process_prompt_old(prompt):
     from Scripts import wildcards
     wildcard=wildcards.WildcardsScript()
-    new_prompt,discarded=wildcard.process(prompt)
+    new_prompt,discarded=wildcard.process(prompt) #discarded= name of wildcard file used
     return new_prompt
+
+
+def process_prompt(prompt):
+    #"prompt_process"
+    global list_modules
+    for module in list_modules:
+        if module[1]=="prompt_process": #Area of modules for processing prompts
+            prompt=module[3](prompt) #modules[2]= show, #modules[3] =process
+
+    return prompt
 
 def show_next_prompt():
     global next_prompt
@@ -240,25 +258,49 @@ def generate_click(
     model_drop,prompt_t0,neg_prompt_t0,sch_t0,
     iter_t0,batch_t0,steps_t0,guid_t0,height_t0,
     width_t0,eta_t0,seed_t0,fmt_t0,multiplier,
-    strengh,name_of_latent,latent_formula,offset_t0):
+    strengh_t0,name_of_latent,latent_formula,offset_t0):
 
-    #from Engine.pipelines_engines import txt2img_pipe
-    #from Engine.Pipelines.txt2img_pipeline import  txt2img_pipe
+    list_of_All_Parameters="model_drop,prompt_t0,neg_prompt_t0,sch_t0,iter_t0,batch_t0,steps_t0,guid_t0,height_t0,width_t0,eta_t0,seed_t0,fmt_t0,multiplier,strengh_t0,name_of_latent,latent_formula,offset_t0"
+    names=list_of_All_Parameters.split(',')
+
+    retorno={}
+    for elemento in names:
+        try:
+            retorno[elemento]=eval(elemento)
+        except:
+            print("Error converting to dict.")
+
+    return generate_click2(model_drop,prompt_t0,neg_prompt_t0,sch_t0,
+                    iter_t0,batch_t0,steps_t0,guid_t0,height_t0,
+                    width_t0,eta_t0,seed_t0,fmt_t0,multiplier,
+                    strengh_t0,name_of_latent,latent_formula,offset_t0,kwargs=retorno)
+
+def generate_click2(
+    model_drop,prompt_t0,neg_prompt_t0,sch_t0,
+    iter_t0,batch_t0,steps_t0,guid_t0,height_t0,
+    width_t0,eta_t0,seed_t0,fmt_t0,multiplier,
+    strengh,name_of_latent,latent_formula,offset_t0,kwargs):
+
+
+
     from Engine import txt2img_pipe
-
     Running_information= running_config().Running_information
     Running_information.update({"Running":True})
     Running_information.update({"Latent_Name":name_of_latent})
     Running_information.update({"Latent_Formula":latent_formula})
     Running_information.update({"offset":offset_t0})
 
+    """global modules
+    kwargs=modules[1](kwargs)
+    print(kwargs)
+    prompt_t0=kwargs['prompt_t0']""" #Para pruebas de carga de modulos
 
     if Running_information["Load_Latents"]:
         Running_information.update({"Latent_Name":name_of_latent})
 
     model_path=UI_Configuration().models_dir+"\\"+model_drop
 
-    if Running_information["tab"] != "txt2img":  #Dejar asi hasta que modifique la rutina de cambio rapido de pipeline
+    if Running_information["tab"] != "txt2img" or (Running_information["model"] != model_drop):  #Dejar asi hasta que modifique la rutina de cambio rapido de pipeline , quitar la comparacion de model drop
         """if (Running_information["model"] != model_drop or Running_information["tab"] != "txt2img"):
         if (Running_information["tab"] == "hires_txt2img") and (Running_information["model"] == model_drop):
             print("Converting in memory model Hires to txt2img pipeline for faster loading")
@@ -285,6 +327,7 @@ def generate_click(
         if running_config().Running_information["cancelled"]:
             break
         prompt,discard=gen_next_prompt(prompt_t0)
+
         print(f"Iteration:{counter}/{iter_t0}")
         counter+=1
         batch_images,info = txt2img_pipe().run_inference(

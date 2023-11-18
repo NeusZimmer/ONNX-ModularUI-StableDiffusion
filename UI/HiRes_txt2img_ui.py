@@ -7,6 +7,8 @@ from Engine import pipelines_engines
 from UI import UI_common_funcs as UI_common
 from Engine import engine_common_funcs as Engine_common
 from PIL import Image, PngImagePlugin
+from modules.modules import preProcess_modules
+from UI import UI_placement_areas
 
 global next_prompt
 global processed_images
@@ -14,15 +16,22 @@ processed_images=[]
 next_prompt=None
 global number_of_passes
 
+global list_modules
+list_modules=[]
+list_modules=preProcess_modules().check_available_modules("hires")
+
 
 def show_HiRes_txt2img_ui():
+    global list_modules
     model_list = UI_common.get_model_list("txt2img")
     sched_list = get_schedulers_list()
     ui_config=UI_Configuration()
     gr.Markdown("Start typing below and then click **Generate** to see the output.")
     with gr.Row(): 
         with gr.Column(scale=13, min_width=650):
-            model_drop = gr.Dropdown(model_list, value=(model_list[0] if len(model_list) > 0 else None), label="model folder", interactive=True)
+            model_drop = gr.Dropdown(model_list, value=(model_list[0] if len(model_list) > 0 else None), label="HiRes model", interactive=True)
+            model_list.append("None")
+            low_model_drop = gr.Dropdown(model_list, value='None', label="LowRes model (None=Same as HiRes)", interactive=True)
             with gr.Accordion("Partial Reloads",open=False):
                 reload_vae_btn = gr.Button("VAE Decoder:Apply Changes & Reload")
                 reload_textenc_btn = gr.Button("Text Encoder Reload")                
@@ -87,7 +96,7 @@ def show_HiRes_txt2img_ui():
                 clear_btn = gr.Button("Cancel",variant="stop", elem_id="gen_button")
                 memory_btn = gr.Button("Release memory", elem_id="mem_button")
 
-            if ui_config.wildcards_activated:
+            """if ui_config.wildcards_activated:
                 from UI import styles_ui
                 styles_ui.show_styles_ui()
                 with gr.Accordion(label="Live Prompt & Wildcards for multiple iterations",open=False):
@@ -97,7 +106,19 @@ def show_HiRes_txt2img_ui():
                     with gr.Row():
                         wildcard_show_btn = gr.Button("Show next prompt", elem_id="wildcard_button")
                         wildcard_gen_btn = gr.Button("Regenerate next prompt", variant="primary", elem_id="wildcard_button")
+                        wildcard_apply_btn = gr.Button("Use edited prompt", elem_id="wildcard_button")"""
+            with gr.Accordion(label="Prompt Processing tools",open=False):
+                with gr.Accordion(label="Live Prompt for multiple iterations & Prompt pre-generation",open=False):
+                    with gr.Row():
+                        next_wildcard = gr.Textbox(value="",lines=4, label="Next Prompt", interactive=True)
+                        discard = gr.Textbox(value="", label="Discard", visible=False, interactive=False)
+                    with gr.Row():
+                        wildcard_show_btn = gr.Button("Show next prompt", elem_id="wildcard_button")
+                        wildcard_gen_btn = gr.Button("Regenerate next prompt", variant="primary", elem_id="wildcard_button")
                         wildcard_apply_btn = gr.Button("Use edited prompt", elem_id="wildcard_button")
+                #Show modules areas
+                UI_placement_areas.show_prompt_preprocess_area(list_modules)
+
             with gr.Row():
                 image_out = gr.Gallery(value=None, label="output images")
             with gr.Accordion(label="Low Res output images",open=False):
@@ -117,12 +138,12 @@ def show_HiRes_txt2img_ui():
     #reload_model_btn.click(fn=change_model,inputs=model_drop,outputs=None)
     reload_textenc_btn.click(fn=change_textenc,inputs=model_drop,outputs=None)
 
-    list_of_All_Parameters2=[model_drop,prompt_t0,neg_prompt_t0,sch_t0,iter_t0,batch_t0,steps_t0,steps_t1,guid_t0,height_t0,width_t0,height_t1,width_t1,eta_t0,seed_t0,fmt_t0,strength_t0,hires_passes_t1,save_textfile, save_low_res,latent_formula,name_of_latent,latents_experimental2,hires_pass_variation]    
+    list_of_All_Parameters=[model_drop,low_model_drop,prompt_t0,neg_prompt_t0,sch_t0,iter_t0,batch_t0,steps_t0,steps_t1,guid_t0,height_t0,width_t0,height_t1,width_t1,eta_t0,seed_t0,fmt_t0,strength_t0,hires_passes_t1,save_textfile, save_low_res,latent_formula,name_of_latent,latents_experimental2,hires_pass_variation]    
 
     memory_btn.click(fn=UI_common.clean_memory_click, inputs=None, outputs=None)    
     
 
-    gen_btn.click(fn=generate_click,inputs=list_of_All_Parameters2,outputs=[image_out,status_out,low_res_image_out])
+    gen_btn.click(fn=generate_click,inputs=list_of_All_Parameters,outputs=[image_out,status_out,low_res_image_out])
     convert_to_latent_btn.click(fn=convert_click,inputs=[image_in,height_t1,width_t1],outputs=None)
 
     if ui_config.wildcards_activated:
@@ -209,9 +230,9 @@ def gen_next_prompt(prompt_t0,initial=False):
         if (next_prompt != None):
             prompt=next_prompt
         else:
-            prompt=wildcards_process(prompt_t0)
+            prompt=prompt_process(prompt_t0)
 
-        next_prompt=wildcards_process(prompt_t0)
+        next_prompt=prompt_process(prompt_t0)
     prompt = style_pre+" " +prompt+" " +style_post
     #print(f"Prompt:{prompt}")
     return prompt,next_prompt
@@ -220,11 +241,21 @@ def apply_prompt(prompt):
     global next_prompt
     next_prompt=prompt
 
-def wildcards_process(prompt):
+def prompt_process_old(prompt):
     from Scripts import wildcards
     wildcard=wildcards.WildcardsScript()
     new_prompt,discarded=wildcard.process(prompt)
     return new_prompt
+
+def prompt_process(prompt):
+    #"prompt_process"
+    global list_modules
+    for module in list_modules:
+        if module[1]=="prompt_process": #Area of modules for processing prompts
+            prompt=module[3](prompt) #modules[2]= show, #modules[3] =process
+
+    return prompt
+
 
 def show_next_prompt():
     global next_prompt
@@ -232,7 +263,7 @@ def show_next_prompt():
 
 
 def generate_click(
-    model_drop,prompt_t0,neg_prompt_t0,sch_t0,
+    model_drop,low_model_drop,prompt_t0,neg_prompt_t0,sch_t0,
     iter_t0,batch_t0,steps_t0,steps_t1,guid_t0,height_t0,
     width_t0,height_t1,width_t1,eta_t0,seed_t0,fmt_t0,strength,
     hires_passes_t1,save_textfile, save_low_res,
@@ -257,6 +288,10 @@ def generate_click(
     Running_information.update({"Running":True})
     model_path=UI_Configuration().models_dir+"\\"+model_drop
 
+    if low_model_drop != 'None': low_model_path=UI_Configuration().models_dir+"\\"+low_model_drop
+    else: low_model_path=None
+
+
     if Running_information["tab"] != "hires_txt2img":
         """if (Running_information["model"] != model_drop or Running_information["tab"] != "hires_txt2img"):        
         if (Running_information["tab"] == "txt2img") and (Running_information["model"] == model_drop):
@@ -274,7 +309,7 @@ def generate_click(
 
 
 
-    txt2img_hires_pipe().initialize(model_path,sch_t0)
+    txt2img_hires_pipe().initialize(model_path,low_model_path,sch_t0)
     txt2img_hires_pipe().create_seeds(seed_t0,iter_t0,False)
     images= []
     images_low= []    

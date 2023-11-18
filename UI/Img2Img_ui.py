@@ -69,8 +69,8 @@ def select_scheduler(sched_name,model_path):
     return pipelines_engines.SchedulersConfig().scheduler(sched_name,model_path)
 
 def generate_click(model_drop,prompt_t0,neg_prompt_t0,sch_t0,image_t0,iter_t0,batch_t0,steps_t0,guid_t0,height_t0,width_t0,eta_t0,seed_t0,fmt_t0,strengh_t0):
-    from Engine.pipelines_engines import img2img_pipe
-
+    #from Engine.pipelines_engines import img2img_pipe
+    from Engine import img2img_pipe
     Running_information= running_config().Running_information
     Running_information.update({"Running":True})
 
