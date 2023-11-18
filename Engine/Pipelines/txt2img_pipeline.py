@@ -26,7 +26,9 @@ class txt2img_pipe(Borg3):
         Borg3.__init__(self)
         self.latents_list = []
 
-    def __str__(self): return json.dumps(self.__dict__)
+    def __str__(self): 
+        import json
+        return json.dumps(self.__dict__)
 
     def reinitialize(self,model_path):
         from Engine.General_parameters import Engine_Configuration as en_config

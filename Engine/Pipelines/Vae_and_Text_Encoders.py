@@ -93,10 +93,10 @@ class Vae_and_Text_Encoders(Borg1):
 
     def load_textencoder(self,model_path):
         from Engine.General_parameters import running_config        
-        """if " " in Engine_Configuration().TEXTEnc_provider:
-            provider = eval(Engine_Configuration().TEXTEnc_provider)
-        else:
-            provider = Engine_Configuration().TEXTEnc_provider"""
+
+        import onnxruntime as ort
+        sess_options = ort.SessionOptions()
+        sess_options.log_severity_level=3
 
         provider=Engine_Configuration().TEXTEnc_provider['provider']
         provider_options=Engine_Configuration().TEXTEnc_provider['provider_options']
@@ -116,7 +116,7 @@ class Vae_and_Text_Encoders(Borg1):
         print(f"Loading TEXT encoder in:{provider} from:{Textenc_path} with options:{provider_options}" )
         self.text_encoder = None
         #self.text_encoder  = ORTModel.load_model(Textenc_path+"/model.onnx", provider,None,None)      
-        self.text_encoder  = ORTModel.load_model(Textenc_path+"/model.onnx", provider,None,provider_options)      
+        self.text_encoder  = ORTModel.load_model(Textenc_path+"/model.onnx", provider,sess_options,provider_options)      
 
         return self.text_encoder
     

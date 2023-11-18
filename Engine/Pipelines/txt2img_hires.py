@@ -26,9 +26,11 @@ class txt2img_hires_pipe(Borg10):
 
     def __init__(self):
         Borg10.__init__(self)
-    def __str__(self): return json.dumps(self.__dict__)
+    def __str__(self): 
+        import json
+        return json.dumps(self.__dict__)
 
-    def initialize(self,model_path,sched_name):
+    def initialize(self,model_path,low_model_path,sched_name):
         import onnxruntime as ort
         sess_options = ort.SessionOptions()
         sess_options.log_severity_level=3
@@ -56,6 +58,10 @@ class txt2img_hires_pipe(Borg10):
             provider=Engine_Configuration().MAINPipe_provider['provider']
             provider_options=Engine_Configuration().MAINPipe_provider['provider_options']
 
+
+            low_res_provider=Engine_Configuration().LowResPipe_provider['provider']
+            low_res_provider_options=Engine_Configuration().LowResPipe_provider['provider_options']
+
             self.hires_pipe = OnnxOptimumStableDiffusionHiResPipeline(
             #self.hires_pipe = OnnxOptimumStableDiffusionHiResPipeline.from_pretrained(
                 model_path,
@@ -65,7 +71,10 @@ class txt2img_hires_pipe(Borg10):
                 vae_decoder_session=Vae_and_Text_Encoders().vae_decoder,
                 vae_encoder_session=Vae_and_Text_Encoders().vae_encoder,
                 sess_options=sess_options,
-                provider_options=provider_options
+                provider_options=provider_options,
+                low_res_model_path=low_model_path,
+                low_res_provider=low_res_provider,
+                low_res_provider_options=low_res_provider_options,
             )
         else:
             self.hires_pipe.scheduler=SchedulersConfig().scheduler(sched_name,model_path)
