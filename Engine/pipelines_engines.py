@@ -51,10 +51,7 @@ class Borg4:
     _shared_state = {}
     def __init__(self):
         self.__dict__ = self._shared_state
-class Borg5:
-    _shared_state = {}
-    def __init__(self):
-        self.__dict__ = self._shared_state
+
 class Borg6:
     _shared_state = {}
     def __init__(self):
@@ -296,7 +293,6 @@ class inpaint_pipe(Borg2):
         return batch_images,dictio
 
 
-
 class instruct_p2p_pipe(Borg4):
     instruct_p2p_pipe = None
     model = None
@@ -367,84 +363,6 @@ class instruct_p2p_pipe(Borg4):
         self.instruct_p2p_pipe= None
         self.model = None
         gc.collect()
-
-
-class img2img_pipe(Borg5):
-    img2img_pipe = None
-    model = None
-    seeds = []
-    def __init__(self):
-        Borg5.__init__(self)
-
-    def __str__(self): return json.dumps(self.__dict__)
-
-    def initialize(self,model_path,sched_name):
-        #from Engine.General_parameters import Engine_Configuration as en_config
-        if Vae_and_Text_Encoders().text_encoder == None:
-            Vae_and_Text_Encoders().load_textencoder(model_path)
-        if Vae_and_Text_Encoders().vae_decoder == None:
-            Vae_and_Text_Encoders().load_vaedecoder(model_path)
-        if Vae_and_Text_Encoders().vae_encoder == None:
-            Vae_and_Text_Encoders().load_vaeencoder(model_path)
-
-        if " " in Engine_Configuration().MAINPipe_provider:
-            provider =eval(Engine_Configuration().MAINPipe_provider)
-        else:
-            provider =Engine_Configuration().MAINPipe_provider
-
-        import onnxruntime as ort
-        sess_options = ort.SessionOptions()
-        sess_options.log_severity_level=3
-
-
-        if self.img2img_pipe == None:
-            print(f"Loading Img2Img pipe in {provider}")
-            self.img2img_pipe = OnnxStableDiffusionImg2ImgPipeline.from_pretrained(
-                model_path,
-                provider=provider,
-                scheduler=SchedulersConfig().scheduler(sched_name,model_path),
-                text_encoder=Vae_and_Text_Encoders().text_encoder,
-                vae_decoder=Vae_and_Text_Encoders().vae_decoder,
-                vae_encoder=Vae_and_Text_Encoders().vae_encoder,
-                sess_options=sess_options
-            )
-        else:
-             self.img2img_pipe.scheduler=SchedulersConfig().scheduler(sched_name,model_path)
-        return self.img2img_pipe
-
-    def create_seeds(self,seed=None,iter=1,same_seeds=False):
-        self.seeds=seed_generator(seed,iter)
-        if same_seeds:
-            for seed in seeds:
-                seed = seeds[0]
-
-    def unload_from_memory(self):
-        self.img2img_pipe= None
-        self.model = None
-        gc.collect()
-
-
-    def run_inference(self,prompt,neg_prompt,init_image,strength,steps,guid,eta,batch,seed):
-        import numpy as np
-        rng = np.random.RandomState(seed)
-        prompt.strip("\n")
-        neg_prompt.strip("\n")
-
-
-        batch_images = self.img2img_pipe(
-            prompt,
-            negative_prompt=neg_prompt,
-            image=init_image,
-            strength= strength,
-            num_inference_steps=steps,
-            guidance_scale=guid,
-            eta=eta,
-            num_images_per_prompt=batch,
-            generator=rng,
-        ).images
-        dictio={'Img2ImgPrompt':prompt,'neg_prompt':neg_prompt,'steps':steps,'guid':guid,'eta':eta,'strength':strength,'seed':seed}
-        return batch_images,dictio
-
 
 class ControlNet_pipe(Borg6):
 #import onnxruntime as ort

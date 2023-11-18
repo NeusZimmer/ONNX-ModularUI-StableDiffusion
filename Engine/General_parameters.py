@@ -42,6 +42,7 @@ class Engine_Configuration(Borg):
     VAEEnc_provider="Not Selected"
     TEXTEnc_provider="Not Selected"
     DeepDanBooru_provider="Not Selected"
+    LowResPipe_provider="Not Selected"
 
     #MAINPipe_provider,Scheduler_provider,ControlNet_provider,VAEDec_provider,TEXTEnc_provider
     def __init__(self):
@@ -70,6 +71,7 @@ class Engine_Configuration(Borg):
         self.VAEDec_provider={'provider':"CPUExecutionProvider",'provider_options':{"device_id": 0} }
         self.VAEEnc_provider={'provider':"CPUExecutionProvider",'provider_options':{"device_id": 0} }
         self.TEXTEnc_provider={'provider':"CPUExecutionProvider",'provider_options':{"device_id": 0} }
+        self.LowResPipe_provider={'provider':"CPUExecutionProvider",'provider_options':{"device_id": 0} }
         self.DeepDanBooru_provider="CPUExecutionProvider"
     
     def load_config_json(self):
@@ -83,6 +85,7 @@ class Engine_Configuration(Borg):
                 self.VAEEnc_provider = jsonStr["VAEEnc_provider"]
                 self.TEXTEnc_provider = jsonStr["TEXTEnc_provider"]
                 self.DeepDanBooru_provider = jsonStr["DeepDanBooru_provider"]
+                self.LowResPipe_provider = jsonStr["LowResPipe_provider"]
         except OSError:
             self.load_default_values()
         return self
