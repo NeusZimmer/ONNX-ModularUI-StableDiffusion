@@ -100,24 +100,43 @@ class OnnxOptimumStableDiffusionHiResPipeline(ORTStableDiffusionPipeline):
         requires_safety_checker: bool = True,
         sess_options: Optional[ort.SessionOptions] = None,
         provider_options: Optional[dict] = None,
+        low_res_model_path: Optional[str] = None,
+        low_res_provider:Optional[str] = None,
+        low_res_provider_options:Optional[str] = None,
         ):
 
-
+        model_name=(model_path.split('\\'))[-1]
+        print(f"loading Hi-Res Model:{model_name}")
         unet_session = ORTModel.load_model(model_path+"/unet/model.onnx", provider,sess_options, provider_options=provider_options)
 
-        CONFIG_NAME="model_index.json"
-        config_file=model_path+"/"+CONFIG_NAME
-        config=None
-        try:
-            import json
-            with open(config_file, "r", encoding="utf-8") as reader:
-                text = reader.read()
-                config=json.loads(text)
-        except:
-            raise OSError(f"model_index.json not found in {model_path} local folder")
-        
-        from transformers import CLIPTokenizer
-        tokenizer = CLIPTokenizer.from_pretrained(model_path+"/"+'tokenizer')
+        tokenizer,config=load_config_and_tokenizer(model_path)  
+        super().__init__(
+                    vae_decoder_session,text_encoder_session,unet_session,
+                    config, tokenizer, scheduler,
+                    vae_encoder_session=vae_encoder_session,
+                    )        
+        self.unet_session=self.unet
+
+
+        if (low_res_model_path!=None) and not(low_res_model_path==model_path):
+            model_name=(low_res_model_path.split('\\'))[-1]
+            print(f"loading Low-Res Model:{model_name}")
+            low_unet_session = ORTModel.load_model(low_res_model_path+"/unet/model.onnx", low_res_provider,sess_options, provider_options=low_res_provider_options)
+            tokenizer2,config2=load_config_and_tokenizer(low_res_model_path)
+            super().__init__(
+                        vae_decoder_session,text_encoder_session,low_unet_session,
+                        config2, tokenizer2, scheduler,
+                        vae_encoder_session=vae_encoder_session,
+                        )
+            self.low_unet_session=self.unet            
+
+        else:
+            print("Low_res = Hi-Res Model")
+            self.low_unet_session = self.unet_session
+
+                  
+            
+
 
         if False: #borrar cuando funcione
             print("inicializacion hires")
@@ -128,13 +147,10 @@ class OnnxOptimumStableDiffusionHiResPipeline(ORTStableDiffusionPipeline):
             print(tokenizer)
             print(scheduler)
 
-        super().__init__(
-                    vae_decoder_session,text_encoder_session,unet_session,
-                    config, tokenizer, scheduler,
-                    vae_encoder_session=vae_encoder_session,
-                    )
-        
-        
+
+
+
+
         if hasattr(scheduler.config, "steps_offset") and scheduler.config.steps_offset != 1:
             deprecation_message = (
                 f"The configuration file of this scheduler: {scheduler} is outdated. `steps_offset`"
@@ -375,6 +391,7 @@ class OnnxOptimumStableDiffusionHiResPipeline(ORTStableDiffusionPipeline):
 
     def __2call__(**args):
         return
+    
     def __call__(
         self,
         prompt: Union[str, List[str]] = None,
@@ -441,6 +458,7 @@ class OnnxOptimumStableDiffusionHiResPipeline(ORTStableDiffusionPipeline):
 
         if not process_latent:
             print("Warm up")
+            self.unet=self.unet_session
             self.txt2img_call(
                 hires_height,
                 hires_width,
@@ -461,6 +479,7 @@ class OnnxOptimumStableDiffusionHiResPipeline(ORTStableDiffusionPipeline):
             print(f"Skip warm-up")
 
         if not skip_to_img2img:
+            self.unet=self.low_unet_session
             print("Low-Res Generation")
             #image_result,latent=self.txt2img_call(
             latent=self.txt2img_call(
@@ -510,7 +529,7 @@ class OnnxOptimumStableDiffusionHiResPipeline(ORTStableDiffusionPipeline):
 
         else:
             image_resize=None
-
+        self.unet=self.unet_session
         i=0
         while i<hires_steps:
             print(f"{i+1} Pass of Hi-Res Generation")   
@@ -1079,3 +1098,18 @@ class OnnxOptimumStableDiffusionHiResPipeline(ORTStableDiffusionPipeline):
             input_image = input_image.crop((0, top, width, bottom))
         return input_image
     
+def load_config_and_tokenizer(model_path):
+        import json
+        CONFIG_NAME="model_index.json"
+        config_file=model_path+"/"+CONFIG_NAME
+        config=None
+        try:
+            import json
+            with open(config_file, "r", encoding="utf-8") as reader:
+                text = reader.read()
+                config=json.loads(text)
+        except:
+            raise OSError(f"model_index.json not found in {model_path} local folder")
+        
+        from transformers import CLIPTokenizer
+        return CLIPTokenizer.from_pretrained(model_path+"/"+'tokenizer'),config
