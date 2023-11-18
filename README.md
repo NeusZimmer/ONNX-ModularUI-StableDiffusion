@@ -4,10 +4,11 @@ This is the Optimum version of a UI for Stable Diffusion, running on ONNX models
 Point to old version ( works up to diffusers 14.0):https://github.com/NeusZimmer/ONNX-Stable-Diffusion-ModularUI
 (TXT2IMG, HIRES-TXT2IMG, IMG2IMG, ControlNet, InstructPix, 3 approaches for face/image restoration, danbooru tagging ...and more)
 
-**Initial Beta version, only including TXT2IMG and HIRES approach of TXT2IMG**
+**Initial Beta version, only including TXT2IMG, IMG2IMG and HIRES approach of TXT2IMG**
 
 
-Supporting: wildcards,pre-defined styles, latent import for hires-txt2img and txt2img inferences, ...
+
+Supporting: wildcards,pre-defined styles, latent import for hires-txt2img and txt2img inferences, HiRes supports using same or different models for low and hires inferences...
 Adapted version of my approach for a working version of stabble diffusion for onnx, able to run on low profile GPUs (also in high-profile), dedicated GPU memory needed:4Gb.
 
 # Install (20-30 min, difficulty low/medium): 
