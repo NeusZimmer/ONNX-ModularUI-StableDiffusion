@@ -173,19 +173,22 @@ def cancel():
 
 
 def change_textenc(model_drop):
-    from Engine.Pipelines.txt2img_hires import txt2img_hires_pipe
-    from Engine.pipelines_engines import Vae_and_Text_Encoders
+    print("Pending to be adapted")
+    """from Engine.Pipelines.txt2img_hires import txt2img_hires_pipe
+    from Engine import Vae_and_Text_Encoders
     pipe=txt2img_hires_pipe().hires_pipe
     textenc=Vae_and_Text_Encoders()
-    pipe.text_encoder=textenc.load_textencoder(f"{UI_Configuration().models_dir}\{model_drop}")    
+    pipe.text_encoder=textenc.load_textencoder(f"{UI_Configuration().models_dir}\{model_drop}")    """
     return
 
 def change_vae(model_drop):
-    from Engine.Pipelines.txt2img_hires import txt2img_hires_pipe
-    from Engine.pipelines_engines import Vae_and_Text_Encoders
+    print("Pending to be adapted")
+    """from Engine.Pipelines.txt2img_hires import txt2img_hires_pipe
+    from Engine import Vae_and_Text_Encoders
     pipe=txt2img_hires_pipe().hires_pipe
     vae=Vae_and_Text_Encoders()
     pipe.vae_decoder=vae.load_vaedecoder(f"{UI_Configuration().models_dir}\{model_drop}")
+    pipe.vae_encoder=vae.load_vaeencoder(f"{UI_Configuration().models_dir}\{model_drop}")"""
     return
 
 
@@ -367,7 +370,7 @@ def generate_click(
 
 
 def convert_click(image,height,width):
-    from Engine.Pipelines.txt2img_hires import txt2img_hires_pipe
+    from Engine import txt2img_hires_pipe
     import numpy as np
     path="./latents"
     image=txt2img_hires_pipe().resize_and_crop(image,height,width)
@@ -387,7 +390,7 @@ def convert_click(image,height,width):
     if txt2img_hires_pipe().hires_pipe!=None:
         init_latents = txt2img_hires_pipe().hires_pipe.vae_encoder(sample=image)[0]
     else:
-        from Engine.pipelines_engines import Vae_and_Text_Encoders
+        from Engine import Vae_and_Text_Encoders
         vaeencoder=Vae_and_Text_Encoders().load_vaeencoder("")
         init_latents = vaeencoder(sample=image)[0]
 
