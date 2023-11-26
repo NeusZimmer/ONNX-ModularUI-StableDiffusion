@@ -1,12 +1,14 @@
 # ONNX-ModularUI-StableDiffusion
 This is the Optimum version of a UI for Stable Diffusion, running on ONNX models for faster inference, working on most common GPU vendors: NVIDIA,AMD GPU...as long as they got support into onnxruntime
 
+
 Point to old version ( works up to diffusers 14.0):https://github.com/NeusZimmer/ONNX-Stable-Diffusion-ModularUI
 (TXT2IMG, HIRES-TXT2IMG, IMG2IMG, ControlNet, InstructPix, 3 approaches for face/image restoration, danbooru tagging ...and more)
 
 **Initial Beta version, only including TXT2IMG, IMG2IMG and HIRES approach of TXT2IMG**
 
-
+**Updates:**
+-Added a working UI interface for model conversion, to ease the process.
 
 Supporting: wildcards,pre-defined styles, latent import for hires-txt2img and txt2img inferences, HiRes supports using same or different models for low and hires inferences...
 Adapted version of my approach for a working version of stabble diffusion for onnx, able to run on low profile GPUs (also in high-profile), dedicated GPU memory needed:4Gb.
@@ -57,6 +59,13 @@ or ```run.bat```
 
 Point your browser to localhost:7860 to accessing the UI app and enjoy yourself...
 
+#  Utility for Model Conversion: 
+ (conversion code extracted from: https://github.com/Amblyopius/Stable-Diffusion-ONNX-FP16)
+```
+cd ConversionTool
+py ONNX-SD-ModelConverter.py
+```
+And point your browser to localhost:7860
 
 
 
