@@ -5,11 +5,11 @@ This is the Optimum version of a UI for Stable Diffusion, running on ONNX models
 Point to old version ( works up to diffusers 14.0):https://github.com/NeusZimmer/ONNX-Stable-Diffusion-ModularUI
 (TXT2IMG, HIRES-TXT2IMG, IMG2IMG, ControlNet, InstructPix, 3 approaches for face/image restoration, danbooru tagging ...and more)
 
-**Initial Beta version, only including TXT2IMG, IMG2IMG and HIRES approach of TXT2IMG**
+**Now including TXT2IMG, IMG2IMG,ControlNet, Inpaint and HIRES approach of TXT2IMG**
 
 **Updates:**
 -Added a working UI interface for model conversion, to ease the process.
-
+-Added FaceRestoration module through faceswapping
 Supporting: wildcards,pre-defined styles, latent import for hires-txt2img and txt2img inferences, HiRes supports using same or different models for low and hires inferences...
 Adapted version of my approach for a working version of stabble diffusion for onnx, able to run on low profile GPUs (also in high-profile), dedicated GPU memory needed:4Gb.
 
@@ -31,7 +31,7 @@ Install requirements file:
 ```pip install -r requirements.txt```
 
 Optional, for face restoration/swapping verssion
-```pip install -r additional-requirements.txt```
+```pip install -r additional_requirements.txt```
 
 When finished, I recommend to reinstall again the onnxruntime package, only one of the listed below, according to your GPU vendor, sometimes it did not recognize the adecuate ExecutionProviders (i.e.DMLExecutionProvider) until this package is reinstalled"
  (Select this last package install according to onnx documentation for NVIDIA, Intel Vino, Mac...more info about what package you need to install: https://onnxruntime.ai/docs/install/#python-installs)
