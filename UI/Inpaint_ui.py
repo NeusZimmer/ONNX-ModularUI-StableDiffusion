@@ -1,11 +1,14 @@
 import gradio as gr
-import os,gc,re,PIL
+import os,re,PIL
 
-from Engine.General_parameters import Engine_Configuration
 from Engine.General_parameters import running_config
 from Engine.General_parameters import UI_Configuration
 from UI import UI_common_funcs as UI_common
-from Engine import pipelines_engines
+from Engine import inpaint_pipe
+
+from Engine import pipelines_engines  #por mover schedulers_config
+#from Engine.General_parameters import Engine_Configuration
+
 
 from PIL import Image, PngImagePlugin
 
@@ -20,7 +23,7 @@ def show_Inpaint_ui():
             prompt_t0 = gr.Textbox(value="", lines=2, label="prompt")
             neg_prompt_t0 = gr.Textbox(value="", lines=2, label="negative prompt")
             sch_t0 = gr.Radio(sched_list, value=sched_list[0], label="scheduler")
-            legacy_t0 = gr.Checkbox(value=False, label="legacy inpaint")
+            #legacy_t0 = gr.Checkbox(value=False, label="legacy inpaint")
 
             image_t0 = gr.Image(
                 source="upload", tool="sketch", label="input image", type="pil", elem_id="image_inpaint")
@@ -40,7 +43,7 @@ def show_Inpaint_ui():
             width_t0 = gr.Slider(256, 2048, value=512, step=64, label="width")
             eta_t0 = gr.Slider(0, 1, value=0.0, step=0.01, label="DDIM eta", interactive=True)
             seed_t0 = gr.Textbox(value="", max_lines=1, label="seed")
-            fmt_t0 = gr.Radio(["png", "jpg"], value="png", label="image format")
+            fmt_t0 = gr.Radio(["png", "jpg"], value="png", label="image format",visible=False)
         with gr.Column(scale=11, min_width=550):
             with gr.Row():
                 gen_btn = gr.Button("Process", variant="primary", elem_id="gen_button")
@@ -54,7 +57,7 @@ def show_Inpaint_ui():
                 status_out = gr.Textbox(value="", label="status")
 
   
-    list_of_All_Parameters=[model_drop,prompt_t0,neg_prompt_t0,legacy_t0,sch_t0,image_t0,mask_t0,iter_t0,batch_t0,steps_t0,guid_t0,height_t0,width_t0,eta_t0,seed_t0,fmt_t0]
+    list_of_All_Parameters=[model_drop,prompt_t0,neg_prompt_t0,sch_t0,image_t0,mask_t0,iter_t0,batch_t0,steps_t0,guid_t0,height_t0,width_t0,eta_t0,seed_t0,fmt_t0]
     gen_btn.click(fn=generate_click, inputs=list_of_All_Parameters, outputs=[image_out,status_out])
     #sch_t0.change(fn=select_scheduler, inputs=sch_t0, outputs= None)  #Atencion cambiar el DDIM ETA si este se activa
     memory_btn.click(fn=UI_common.clean_memory_click, inputs=None, outputs=None)
@@ -73,8 +76,8 @@ def get_schedulers_list():
 def select_scheduler(sched_name,model_path):
     return pipelines_engines.SchedulersConfig().scheduler(sched_name,model_path)
 
-def generate_click(model_drop,prompt_t0,neg_prompt_t0,legacy_t0,sch_t0,image_t0,mask_t0,iter_t0,batch_t0,steps_t0,guid_t0,height_t0,width_t0,eta_t0,seed_t0,fmt_t0):
-    from Engine.pipelines_engines import inpaint_pipe
+def generate_click(model_drop,prompt_t0,neg_prompt_t0,sch_t0,image_t0,mask_t0,iter_t0,batch_t0,steps_t0,guid_t0,height_t0,width_t0,eta_t0,seed_t0,fmt_t0):
+
 
     Running_information= running_config().Running_information
     Running_information.update({"Running":True})
@@ -91,16 +94,13 @@ def generate_click(model_drop,prompt_t0,neg_prompt_t0,legacy_t0,sch_t0,image_t0,
         input_mask = image_t0["mask"].convert("RGB")
         input_mask = resize_and_crop(input_mask, height_t0, width_t0)
 
-        #if legacy_t0 is True:
-            #steps_t0 = step_adjustment(steps_t0, 0, "inpaint")
-
     if (Running_information["model"] != model_drop or Running_information["tab"] != "inpaint"):
         UI_common.clean_memory_click()
         Running_information.update({"model":model_drop})
         Running_information.update({"tab":"inpaint"})
 
     model_path=ui_config=UI_Configuration().models_dir+"\\"+model_drop
-    pipe=inpaint_pipe().initialize(model_path,sch_t0,legacy_t0)
+    pipe=inpaint_pipe().initialize(model_path,sch_t0)
 
     inpaint_pipe().create_seeds(seed_t0,iter_t0,False)
     images= []
@@ -127,7 +127,7 @@ def generate_click(model_drop,prompt_t0,neg_prompt_t0,legacy_t0,sch_t0,image_t0,
             eta_t0,
             batch_t0,
             seed,
-            legacy_t0)
+            )
         images.extend(batch_images)
         info=dict(info)
         info['Sched:']=sch_t0

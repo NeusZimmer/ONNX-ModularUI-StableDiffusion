@@ -7,6 +7,7 @@ from Engine.General_parameters import UI_Configuration
 from Engine.General_parameters import ControlNet_config
 from UI import UI_common_funcs as UI_common
 from Engine import pipelines_engines
+from Engine import ControlNet_pipe
 
 from PIL import Image, PngImagePlugin
 
@@ -23,7 +24,15 @@ def show_ControlNet_ui():
             with gr.Row():
                 ControlNET_drop = gr.Dropdown(controlnet_models.keys(),value=next(iter(controlnet_models)), label="ControNET Type", interactive=True)
                 reload_controlnet_btn = gr.Button("Reload ControlNet model list")
+                """
+                                ControlNET_drop = gr.Dropdown(["No model configured"], label="ControNET Type", interactive=True)
+                                lista_controlnet=list(controlnet_models.keys())
+                                if len(lista_controlnet)>0:
+                                    print(lista_controlnet)
+                                    #ControlNET_drop.update(controlnet_models.keys(),value=next(iter(controlnet_models)), label="ControNET Type", interactive=True)
+                                    ControlNET_drop.update(choices=lista_controlnet,value=lista_controlnet[0], label="ControNET Type", interactive=True)
 
+                """
             prompt_t0 = gr.Textbox(value="", lines=2, label="prompt")
             neg_prompt_t0 = gr.Textbox(value="", lines=2, label="negative prompt")
             sch_t0 = gr.Radio(sched_list, value=sched_list[0], label="scheduler", interactive=True)
@@ -83,7 +92,6 @@ def select_scheduler(sched_name,model_path):
 
 
 def generate_click(model_drop,prompt_t0,neg_prompt_t0,sch_t0,image_t0,iter_t0,batch_t0,steps_t0,guid_t0,height_t0,width_t0,eta_t0,seed_t0,ControlNET_drop,controlnet_conditioning_scale):
-    from Engine.pipelines_engines import ControlNet_pipe
 
     Running_information= running_config().Running_information
     Running_information.update({"Running":True})

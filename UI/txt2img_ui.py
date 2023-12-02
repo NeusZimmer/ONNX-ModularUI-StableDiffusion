@@ -98,6 +98,8 @@ def show_txt2img_ui():
                     #previous_btn = gr.Button("Previous", elem_id="gallery_button")
                     #next_btn = gr.Button("Next", elem_id="gallery_button")
   
+    with gr.Row():
+        UI_placement_areas.show_footer_area(list_modules)
 
     image_out.select(fn=get_select_index, inputs=[image_out,status_out], outputs=[Selected_image_index,Selected_image_status])
     delete_btn.click(fn=delete_selected_index, inputs=[Selected_image_index,status_out], outputs=[image_out,status_out])
@@ -245,8 +247,8 @@ def process_prompt(prompt):
     #"prompt_process"
     global list_modules
     for module in list_modules:
-        if module[1]=="prompt_process": #Area of modules for processing prompts
-            prompt=module[3](prompt) #modules[2]= show, #modules[3] =process
+        if module['func_processing']=="prompt_process": #Area of modules for processing prompts
+            prompt=module['call'](prompt) #modules[2]= show, #modules[3] =process
 
     return prompt
 

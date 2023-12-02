@@ -8,15 +8,13 @@ def show_prompt_preprocess_area(list_modules):
 def show_image_postprocess_area(list_modules):
     _all_areas_process(list_modules,"image_postprocess")#Area of modules for postprocessing images
 
-
-
-
+def show_footer_area(list_modules):
+    _all_areas_process(list_modules,"footer")#Area of modules for postprocessing images
 
 def _all_areas_process(list_modules,area_name):
     for module in list_modules:
-        if module[1]==area_name: 
-            module[2]() #modules[2]= show, #modules[3] =process
-
+        if module['ui_position']==area_name: 
+            module['show']() #modules[2]= show, #modules[3] =process
 
 
 if __name__ == "main":

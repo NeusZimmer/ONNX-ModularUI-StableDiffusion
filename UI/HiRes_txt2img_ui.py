@@ -32,9 +32,13 @@ def show_HiRes_txt2img_ui():
             model_drop = gr.Dropdown(model_list, value=(model_list[0] if len(model_list) > 0 else None), label="HiRes model", interactive=True)
             model_list.append("None")
             low_model_drop = gr.Dropdown(model_list, value='None', label="LowRes model (None=Same as HiRes)", interactive=True)
-            with gr.Accordion("Partial Reloads",open=False):
-                reload_vae_btn = gr.Button("VAE Decoder:Apply Changes & Reload")
-                reload_textenc_btn = gr.Button("Text Encoder Reload")                
+            with gr.Accordion("Additional options",open=False):
+                #reload_vae_btn = gr.Button("VAE Decoder:Apply Changes & Reload")
+                #reload_textenc_btn = gr.Button("Text Encoder Reload")           
+                reload_lowres_btn = gr.Button("Reload Low-res model")
+                reload_hires_btn = gr.Button("Reload HiRes Model")           
+                copy_hires_to_lowres_btn = gr.Button("Use HiRes model as LowRes")                
+                test_vae_split_btn = gr.Button("Test VAE Split",visible=False)
                 #reload_model_btn = gr.Button("Model:Apply new model & Fast Reload Pipe")
 
             sch_t0 = gr.Radio(sched_list, value=sched_list[0], label="scheduler")
@@ -130,27 +134,32 @@ def show_HiRes_txt2img_ui():
                 Selected_image_status= gr.Textbox(value="", label="status",visible=True)
                 Selected_image_index= gr.Number(show_label=False, visible=False)
 
+    with gr.Row():
+        UI_placement_areas.show_footer_area(list_modules)
   
     image_out.select(fn=get_select_index, inputs=[image_out,status_out], outputs=[Selected_image_index,Selected_image_status])
     clear_btn.click(fn=UI_common.cancel_iteration,inputs=None,outputs=None)
     #clear_btn.click(fn=cancel,inputs=None,outputs=None)    
-    reload_vae_btn.click(fn=change_vae,inputs=model_drop,outputs=None)
-    #reload_model_btn.click(fn=change_model,inputs=model_drop,outputs=None)
-    reload_textenc_btn.click(fn=change_textenc,inputs=model_drop,outputs=None)
+
+    #reload_vae_btn.click(fn=change_vae,inputs=model_drop,outputs=None)
+    #reload_textenc_btn.click(fn=change_textenc,inputs=model_drop,outputs=None)
+
 
     list_of_All_Parameters=[model_drop,low_model_drop,prompt_t0,neg_prompt_t0,sch_t0,iter_t0,batch_t0,steps_t0,steps_t1,guid_t0,height_t0,width_t0,height_t1,width_t1,eta_t0,seed_t0,fmt_t0,strength_t0,hires_passes_t1,save_textfile, save_low_res,latent_formula,name_of_latent,latents_experimental2,hires_pass_variation]    
 
     memory_btn.click(fn=UI_common.clean_memory_click, inputs=None, outputs=None)    
-    
+    reload_hires_btn.click(fn=reload_hires,inputs=model_drop,outputs=None)
+    reload_lowres_btn.click(fn=reload_lowres,inputs=low_model_drop,outputs=None)
+    copy_hires_to_lowres_btn.click(fn=copy_hires,inputs=None,outputs=None)
+    test_vae_split_btn.click(fn=vae_output_to_numpy,inputs=None,outputs=image_out)    
 
     gen_btn.click(fn=generate_click,inputs=list_of_All_Parameters,outputs=[image_out,status_out,low_res_image_out])
     convert_to_latent_btn.click(fn=convert_click,inputs=[image_in,height_t1,width_t1],outputs=None)
 
-    if ui_config.wildcards_activated:
-        wildcard_gen_btn.click(fn=gen_next_prompt, inputs=prompt_t0, outputs=[discard,next_wildcard])
-        wildcard_show_btn.click(fn=show_next_prompt, inputs=None, outputs=next_wildcard)
-        wildcard_apply_btn.click(fn=apply_prompt, inputs=next_wildcard, outputs=None)
-
+    
+    wildcard_gen_btn.click(fn=gen_next_prompt, inputs=prompt_t0, outputs=[discard,next_wildcard])
+    wildcard_show_btn.click(fn=show_next_prompt, inputs=None, outputs=next_wildcard)
+    wildcard_apply_btn.click(fn=apply_prompt, inputs=next_wildcard, outputs=None)
 
 
 def cancel():
@@ -171,6 +180,79 @@ def cancel():
 
     Inference_Session.RunOptions=Runtime_options
 
+def vae_output_to_numpy():
+    import numpy as np
+    from Engine import txt2img_hires_pipe
+    pipe=txt2img_hires_pipe()
+    
+    latents=np.load(f"./latents/LastGenerated_Latent.npy")
+    latents = 1 / 0.18215 * latents
+    print("Shape")
+    print(latents.shape)
+
+    """image = np.concatenate(
+        [pipe.hires_pipe.vae_decoder(latent_sample=latents[i : i + 1])[0] for i in range(latents.shape[0])]
+    )"""
+    latents1=latents[:,:,:,0:32]
+    latents2=latents[:,:,32:,0:32]
+    latents3=latents[:,:,:,32:]
+    latents4=latents[:,:,32:,32:]
+
+    image1=pipe.hires_pipe.vae_decoder(latent_sample=latents1)[0]
+    #image2=pipe.hires_pipe.vae_decoder(latent_sample=latents2)[0]
+    image3=pipe.hires_pipe.vae_decoder(latent_sample=latents3)[0]
+    #image4=pipe.hires_pipe.vae_decoder(latent_sample=latents4)[0]        
+
+
+    image1 = numpy_to_pil(normalize(image1))
+    #image2 = numpy_to_pil(normalize(image2))
+    image3 = numpy_to_pil(normalize(image3))
+    #image4 = numpy_to_pil(normalize(image4))
+    images=image1+image3#+image2+image4
+    print(type(images))
+
+    return images
+
+def normalize(image2):
+    import numpy as np
+    image2 = np.clip(image2 / 2 + 0.5, 0, 1)
+    return image2.transpose((0, 2, 3, 1))
+
+def numpy_to_pil(images):
+    """
+    Converts a numpy image or a batch of images to a PIL image.
+    """
+    if images.ndim == 3:
+        images = images[None, ...]
+    images = (images * 255).round().astype("uint8")
+    if images.shape[-1] == 1:
+        # special case for grayscale (single channel) images
+        pil_images = [Image.fromarray(image.squeeze(), mode="L") for image in images]
+    else:
+        pil_images = [Image.fromarray(image) for image in images]
+
+    return pil_images
+
+
+def copy_hires():
+    from Engine import txt2img_hires_pipe
+    pipe=txt2img_hires_pipe()
+    #pipe.hires_pipe.unet_session=pipe.hires_pipe.low_unet_session
+    pipe.hires_pipe.low_unet_session=pipe.hires_pipe.unet_session
+    print("Copied current Hires model onto lowres model")
+
+def reload_lowres(low_model_drop):
+    from Engine import txt2img_hires_pipe
+    pipe=txt2img_hires_pipe()
+    model_path=UI_Configuration().models_dir+"\\"+low_model_drop
+    
+    pipe.reload_partial_model(model_path,"low")
+
+def reload_hires(model_drop):
+    from Engine import txt2img_hires_pipe
+    pipe=txt2img_hires_pipe()
+    model_path=UI_Configuration().models_dir+"\\"+model_drop
+    pipe.reload_partial_model(model_path,"high")
 
 def change_textenc(model_drop):
     print("Pending to be adapted")
@@ -254,8 +336,8 @@ def prompt_process(prompt):
     #"prompt_process"
     global list_modules
     for module in list_modules:
-        if module[1]=="prompt_process": #Area of modules for processing prompts
-            prompt=module[3](prompt) #modules[2]= show, #modules[3] =process
+        if module['func_processing']=="prompt_process": #Area of modules for processing prompts
+            prompt=module['call'](prompt) #modules[2]= show, #modules[3] =process
 
     return prompt
 
@@ -388,11 +470,19 @@ def convert_click(image,height,width):
 
     # encode the init image into latents and scale the latents
     if txt2img_hires_pipe().hires_pipe!=None:
+        vaeencoder=txt2img_hires_pipe().hires_pipe.vae_encoder
         init_latents = txt2img_hires_pipe().hires_pipe.vae_encoder(sample=image)[0]
     else:
-        from Engine import Vae_and_Text_Encoders
-        vaeencoder=Vae_and_Text_Encoders().load_vaeencoder("")
-        init_latents = vaeencoder(sample=image)[0]
+        print("Initialize a model to process an image")
+        """from Engine import Vae_and_Text_Encoders
+        vaeencoder_session=Vae_and_Text_Encoders().load_vaeencoder("")
+
+        input_names = {input_key.name: idx for idx, input_key in enumerate(vaeencoder_session.get_inputs())}
+        print(input_names)
+        output_names={output_key.name: idx for idx, output_key in enumerate(vaeencoder_session.get_outputs())}
+        
+        print(output_names)
+        init_latents = vaeencoder_session.run({'latent_sample': 0},{'sample': image})[0]"""
 
 
     #print(f"init_latents:{type(init_latents)}")
