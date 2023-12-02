@@ -5,7 +5,13 @@ from Engine.General_parameters import running_config
 from Engine.General_parameters import UI_Configuration
 #from Engine.Pipelines.txt2img_hires import txt2img_hires_pipe   
 #from Engine.Pipelines.txt2img_pipeline import  txt2img_pipe
-from Engine import txt2img_pipe,Vae_and_Text_Encoders,txt2img_hires_pipe
+from Engine import (
+    txt2img_pipe,
+    Vae_and_Text_Encoders,
+    txt2img_hires_pipe,
+    ControlNet_pipe,
+    img2img_pipe
+    )
 
 
 def clean_memory_click():
@@ -13,11 +19,10 @@ def clean_memory_click():
     Vae_and_Text_Encoders().unload_from_memory()
     txt2img_pipe().unload_from_memory()
     txt2img_hires_pipe().unload_from_memory()
+    ControlNet_pipe().unload_from_memory()
+    img2img_pipe().unload_from_memory()
     #pipelines_engines.inpaint_pipe().unload_from_memory()
     #pipelines_engines.instruct_p2p_pipe().unload_from_memory()
-    #pipelines_engines.img2img_pipe().unload_from_memory()
-    #pipelines_engines.ControlNet_pipe().unload_from_memory()
-
     
     gc.collect()    
 
