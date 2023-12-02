@@ -19,7 +19,7 @@ class Vae_and_Text_Encoders(Borg1):
 
     def __str__(self): return json.dumps(self.__dict__)
 
-    def load_vaedecoder(self,model_path):
+    def load_vaedecoder(self,model_path,old_version=False):
         from Engine.General_parameters import running_config        
         """if " " in Engine_Configuration().VAEDec_provider:
             provider =eval(Engine_Configuration().VAEDec_provider)
@@ -49,12 +49,25 @@ class Vae_and_Text_Encoders(Borg1):
 
         self.vae_decoder = None
         print(f"Loading VAE decoder in:{provider}, from {vae_path} with options:{provider_options}" )
-        #self.vae_decoder = ORTModel.load_model(vae_path+"/model.onnx", provider,None, provider_options={'device_id': 1})
-        #self.vae_decoder = ORTModel.load_model(vae_path+"/model.onnx", provider,sess_options, provider_options={'device_id': 1})
-        self.vae_decoder = ORTModel.load_model(vae_path+"/model.onnx", provider,sess_options, provider_options=provider_options)
-        return self.vae_decoder
 
-    def load_vaeencoder(self,model_path):
+        
+
+
+        if old_version:
+            from diffusers import OnnxRuntimeModel
+            provider=(str(provider),dict(provider_options))
+            self.vae_decoder = OnnxRuntimeModel.from_pretrained(vae_path, provider=provider,sess_options=sess_options)
+        else:
+            self.vae_decoder = ORTModel.load_model(vae_path+"/model.onnx", provider,sess_options, provider_options=provider_options)
+
+        return self.vae_decoder #may give problems in the future ( the init of the sd model change it to model, but this is a session)
+    
+    """def transform_vadedecodersession_to_model(self,vaedecoder_session):
+        from optimum.onnxruntime.modeling_diffusion import ORTModelVaeDecoder
+        return ORTModelVaeDecoder(vaedecoder_session,parent_model=None)"""
+
+
+    def load_vaeencoder(self,model_path,old_version=False):
         from Engine.General_parameters import running_config        
         running_config=running_config()
         import os
@@ -86,12 +99,22 @@ class Vae_and_Text_Encoders(Borg1):
         sess_options = ort.SessionOptions()
         sess_options.log_severity_level=3
         print(f"Loading VAE encoder in:{provider}, from {vae_path} with options:{provider_options}")
-        self.vae_encoder = ORTModel.load_model(vae_path+"/model.onnx", provider,sess_options, provider_options=provider_options)
+
+        if old_version:
+            from diffusers import OnnxRuntimeModel
+            provider=(str(provider),dict(provider_options))
+            self.vae_encoder = OnnxRuntimeModel.from_pretrained(vae_path, provider=provider,sess_options=sess_options)
+        else:
+            self.vae_encoder = ORTModel.load_model(vae_path+"/model.onnx", provider,sess_options, provider_options=provider_options)  
+
+
+        
         
 
         return self.vae_encoder
 
-    def load_textencoder(self,model_path):
+
+    def load_textencoder(self,model_path,old_version=False):
         from Engine.General_parameters import running_config        
 
         import onnxruntime as ort
@@ -115,8 +138,15 @@ class Vae_and_Text_Encoders(Borg1):
 
         print(f"Loading TEXT encoder in:{provider} from:{Textenc_path} with options:{provider_options}" )
         self.text_encoder = None
-        #self.text_encoder  = ORTModel.load_model(Textenc_path+"/model.onnx", provider,None,None)      
-        self.text_encoder  = ORTModel.load_model(Textenc_path+"/model.onnx", provider,sess_options,provider_options)      
+        #self.text_encoder  = ORTModel.load_model(Textenc_path+"/model.onnx", provider,None,None)
+
+        if old_version:
+            from diffusers import OnnxRuntimeModel
+            provider=(str(provider),dict(provider_options))
+            #self.text_encoder  = ORTModel.load_model(Textenc_path+"/model.onnx" , provider,sess_options,provider_options)
+            self.text_encoder = OnnxRuntimeModel.from_pretrained(Textenc_path, provider=provider,sess_options=sess_options)
+        else:
+            self.text_encoder  = ORTModel.load_model(Textenc_path+"/model.onnx" , provider,sess_options,provider_options)      
 
         return self.text_encoder
     

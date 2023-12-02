@@ -1,4 +1,4 @@
-#from sched import scheduler
+
 from Engine.General_parameters import Engine_Configuration
 from Engine import Vae_and_Text_Encoders
 from Engine.pipelines_engines import SchedulersConfig
@@ -82,43 +82,46 @@ class txt2img_pipe(Borg3):
             vae_encoder=None,            
             sess_options=sess_options
         )
+
         return self.txt2img_pipe
 
+    def configure_sess_options(self):
+        import onnxruntime as ort
+        sess_options = ort.SessionOptions()
+        sess_options.log_severity_level=3
+        sess_options.enable_cpu_mem_arena=True
+        sess_options.enable_mem_reuse= True
+        sess_options.enable_mem_pattern = True
+
+        return sess_options
+
     def initialize(self,model_path,sched_name):
-        from Engine.General_parameters import Engine_Configuration as en_config
+        #from Engine.General_parameters import Engine_Configuration as en_config
         if Vae_and_Text_Encoders().text_encoder == None:
             Vae_and_Text_Encoders().load_textencoder(model_path)
         if Vae_and_Text_Encoders().vae_decoder == None:
             Vae_and_Text_Encoders().load_vaedecoder(model_path)
 
-        """if " " in Engine_Configuration().MAINPipe_provider:
-            provider =eval(Engine_Configuration().MAINPipe_provider)
-        else:
-            provider =Engine_Configuration().MAINPipe_provider"""
-
-
         provider=Engine_Configuration().MAINPipe_provider['provider']
         provider_options=Engine_Configuration().MAINPipe_provider['provider_options']
 
         if self.txt2img_pipe == None:
-            import onnxruntime as ort
-            sess_options = ort.SessionOptions()
-            sess_options.log_severity_level=3
-            print(f"Loadint Txt2Img Pipeline in [{provider}]")            
-            #self.txt2img_pipe = OnnxStableDiffusionPipeline.from_pretrained(
-            self.txt2img_pipe = ORTStableDiffusionPipeline.from_pretrained(
-                model_path,
-                provider=provider,
+            from optimum.onnxruntime.modeling_ort import ORTModel
+            from Engine.engine_common_funcs import load_tokenizer_and_config
+
+            print(f"Loading Txt2Img Unet session in [{provider}] with options:{provider_options}")            
+            unet_session = ORTModel.load_model(model_path+"/unet/model.onnx", provider,self.configure_sess_options(), provider_options=provider_options)
+            tokenizer,config=load_tokenizer_and_config(model_path)  
+
+            self.txt2img_pipe = ORTStableDiffusionPipeline(
+                unet_session=unet_session,
                 vae_decoder_session= Vae_and_Text_Encoders().vae_decoder,
                 text_encoder_session= Vae_and_Text_Encoders().text_encoder,
-                text_encoder=Vae_and_Text_Encoders().text_encoder,
-                vae_decoder=Vae_and_Text_Encoders().vae_decoder,
-                vae_encoder=None,
-                sess_options=sess_options,
-                provider_options=provider_options
+                vae_encoder_session=None,
+                tokenizer=tokenizer,
+                config=config,
+                scheduler=SchedulersConfig().scheduler(sched_name,model_path)
             )
-            self.txt2img_pipe.scheduler=SchedulersConfig().scheduler(sched_name,model_path)
-
         else:
              self.txt2img_pipe.scheduler=SchedulersConfig().scheduler(sched_name,model_path)
 

@@ -147,6 +147,51 @@ class txt2img_hires_pipe(Borg10):
 
 
 
+    def reload_partial_model(self,model_path,LowHigh=None):
+        if LowHigh!=None:
+            import onnxruntime as ort
+            sess_options = ort.SessionOptions()
+            sess_options.log_severity_level=3
+            sess_options.enable_cpu_mem_arena=False
+            sess_options.enable_mem_reuse= True
+            sess_options.enable_mem_pattern = True
+            #from Engine.General_parameters import Engine_Configuration as en_config
+            if Vae_and_Text_Encoders().text_encoder == None:
+                Vae_and_Text_Encoders().load_textencoder(model_path)
+            if Vae_and_Text_Encoders().vae_decoder == None:
+                Vae_and_Text_Encoders().load_vaedecoder(model_path)
+            if Vae_and_Text_Encoders().vae_encoder == None:
+                Vae_and_Text_Encoders().load_vaeencoder(model_path)
+
+            if LowHigh=="low":
+                low_res_provider=Engine_Configuration().LowResPipe_provider['provider']
+                low_res_provider_options=Engine_Configuration().LowResPipe_provider['provider_options']            
+                self.hires_pipe.reload_lowres(
+                    scheduler=SchedulersConfig().scheduler("DDIM",model_path),
+                    text_encoder_session=Vae_and_Text_Encoders().text_encoder,
+                    vae_decoder_session=Vae_and_Text_Encoders().vae_decoder,
+                    vae_encoder_session=Vae_and_Text_Encoders().vae_encoder,
+                    sess_options=sess_options,
+                    low_res_model_path=model_path,
+                    low_res_provider=low_res_provider,
+                    low_res_provider_options=low_res_provider_options,
+                )
+            else: #reload highresmodel
+                provider=Engine_Configuration().MAINPipe_provider['provider']
+                provider_options=Engine_Configuration().MAINPipe_provider['provider_options']
+
+                self.hires_pipe.reload_hires(
+                    model_path,
+                    provider=provider,
+                    scheduler=SchedulersConfig().scheduler("DDIM",model_path),
+                    text_encoder_session=Vae_and_Text_Encoders().text_encoder,
+                    vae_decoder_session=Vae_and_Text_Encoders().vae_decoder,
+                    vae_encoder_session=Vae_and_Text_Encoders().vae_encoder,
+                    sess_options=sess_options,
+                    provider_options=provider_options,
+                )
+        import gc
+        gc.collect()
 
     def create_seeds(self,seed=None,iter=1,same_seeds=False):
         self.seeds=self.seed_generator(seed,iter)

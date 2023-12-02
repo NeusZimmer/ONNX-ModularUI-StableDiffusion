@@ -9,6 +9,7 @@ from Engine.pipelines_engines import seed_generator
 from optimum.onnxruntime import ORTStableDiffusionImg2ImgPipeline
 
 import gc
+import json
 import numpy as np
 
 
@@ -27,9 +28,7 @@ class img2img_pipe(Borg5):
     def __init__(self):
         Borg5.__init__(self)
 
-    def __str__(self): 
-        import json
-        return json.dumps(self.__dict__)
+    def __str__(self): return json.dumps(self.__dict__)
 
     def initialize(self,model_path,sched_name):
         #from Engine.General_parameters import Engine_Configuration as en_config
@@ -76,6 +75,7 @@ class img2img_pipe(Borg5):
     def unload_from_memory(self):
         self.img2img_pipe= None
         self.model = None
+        self.seeds = None
         gc.collect()
 
 
