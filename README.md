@@ -57,7 +57,11 @@ When finished, I recommend to reinstall again the onnxruntime package, only one 
     pip install onnxruntime-azure
 ```
 Optional: download the onnx model of your preference and include it into the models folder ( or configure the directory of your preference in the Configuration Tab).
-Sample model: "https://civitai.com/models/125580/onnx-base-set-of-model-neusz"
+**Sample Models** 
+```
+https://civitai.com/models/125580/onnx-base-set-of-model-neusz
+https://huggingface.co/Neus/CommonModels
+```
 (You will need to download the main model, the vae decoder, vae encoder and text encoder and put each one in the adequate subdir)
 
 Activate the environment  ```activate.bat```
