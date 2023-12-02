@@ -8,8 +8,12 @@ Point to old version ( works up to diffusers 14.0):https://github.com/NeusZimmer
 **Now including TXT2IMG, IMG2IMG,ControlNet, Inpaint and HIRES approach of TXT2IMG**
 
 **Updates:**
--Added a working UI interface for model conversion, to ease the process.
--Added FaceRestoration module through faceswapping
+
+Added modules support
+Added two models approach for hi-res pipeline.
+Added a working UI interface for model conversion, to ease the process.
+Added FaceRestoration module through faceswapping.
+
 Supporting: wildcards,pre-defined styles, latent import for hires-txt2img and txt2img inferences, HiRes supports using same or different models for low and hires inferences...
 Adapted version of my approach for a working version of stabble diffusion for onnx, able to run on low profile GPUs (also in high-profile), dedicated GPU memory needed:4Gb.
 
