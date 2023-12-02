@@ -14,13 +14,11 @@ def init_ui():
             with gr.Tab(label="Txt2img Pipelines & Inferences") as tab0:
                 from UI import txt2img_ui as txt2img_ui
                 txt2img_ui.show_txt2img_ui()
-        #if ui_config.Img2Img_Tab:
-        if True:            
+        if ui_config.Img2Img_Tab:
             with gr.Tab(label="Img2Img") as tab1:
                 from UI import Img2Img_ui
                 Img2Img_ui.show_Img2Img_ui()
-        #if ui_config.InPaint_Tab:
-        if False:            
+        if ui_config.InPaint_Tab:
             with gr.Tab(label="InPaint") as tab2:
                 from UI import Inpaint_ui
                 Inpaint_ui.show_Inpaint_ui()
@@ -36,12 +34,11 @@ def init_ui():
             with gr.Tab(label="Instruct Pix2Pix") as tab4:
                 from UI import instructp2p_ui
                 instructp2p_ui.show_instructp2p_ui()
-        #if ui_config.ControlNet_Tab:
-        if False:            
+        if ui_config.ControlNet_Tab:
             with gr.Tab(label="ControlNet") as tab5:
                 from UI import ControlNet_ui
                 ControlNet_ui.show_ControlNet_ui()
-        if False:            
+        if True:            
             with gr.Tab(label="FaceRestoration") as tab6:
                 from UI import ui_face_tools
                 ui_face_tools.show_input_image_area()
