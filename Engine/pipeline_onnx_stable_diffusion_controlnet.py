@@ -371,7 +371,7 @@ class OnnxStableDiffusionControlNetPipeline(DiffusionPipeline):
         timestep_dtype = ORT_TO_NP_TYPE[timestep_dtype]
         
         num_warmup_steps = len(timesteps) - num_inference_steps * self.scheduler.order
-
+        blocksamples=None
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
                 # expand the latents if we are doing classifier free guidance
@@ -381,26 +381,26 @@ class OnnxStableDiffusionControlNetPipeline(DiffusionPipeline):
 
                 timestep = np.array([t], dtype=timestep_dtype)
 
-
-                blocksamples = self.controlnet(
-                    sample=latent_model_input,
-                    timestep=timestep,
-                    encoder_hidden_states=prompt_embeds,
-                    return_dict=True,   #eliminar comentario para prueba de tile
-                    controlnet_cond=image,
-                )
+                if blocksamples==None:
+                    blocksamples = self.controlnet(
+                        sample=latent_model_input,
+                        timestep=timestep,
+                        encoder_hidden_states=prompt_embeds,
+                        #return_dict=True,   #eliminar comentario para prueba de tile
+                        controlnet_cond=image,
+                    )
 
               
-                mid_block_res_sample=blocksamples[12]
-                down_block_res_samples=blocksamples[0:12]
+                    mid_block_res_sample=blocksamples[12]
+                    down_block_res_samples=blocksamples[0:12]
 
 
 
-                down_block_res_samples = [
-                    down_block_res_sample * controlnet_conditioning_scale
-                    for down_block_res_sample in down_block_res_samples
-                ]
-                mid_block_res_sample *= controlnet_conditioning_scale
+                    down_block_res_samples = [
+                        down_block_res_sample * controlnet_conditioning_scale
+                        for down_block_res_sample in down_block_res_samples
+                    ]
+                    mid_block_res_sample *= controlnet_conditioning_scale
 
                 # predict the noise residual
                 

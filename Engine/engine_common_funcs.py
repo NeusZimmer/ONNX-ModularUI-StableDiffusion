@@ -111,3 +111,40 @@ def PIL_resize_and_crop(input_image: PIL.Image.Image, height: int, width: int):
         input_image = input_image.crop((0, top, width, bottom))
     return input_image    
 
+
+def load_tokenizer_and_config(model_path):
+        import json
+        CONFIG_NAME="model_index.json"
+        config_file=model_path+"/"+CONFIG_NAME
+        config=None
+        try:
+            import json
+            with open(config_file, "r", encoding="utf-8") as reader:
+                text = reader.read()
+                config=json.loads(text)
+        except:
+            raise OSError(f"model_index.json not found in {model_path} local folder")
+        
+        from transformers import CLIPTokenizer
+        return CLIPTokenizer.from_pretrained(model_path+"/"+'tokenizer'),config
+
+def seed_generator(seed,iteration_count):
+    import numpy as np
+    # generate seeds for iterations
+    if seed == "" or seed == None:
+        rng = np.random.default_rng()
+        seed = rng.integers(np.iinfo(np.uint32).max)
+    else:
+        try:
+            seed = int(seed) & np.iinfo(np.uint32).max
+        except ValueError:
+            seed = hash(seed) & np.iinfo(np.uint32).max
+
+    # use given seed for the first iteration
+    seeds = np.array([seed], dtype=np.uint32)
+
+    if iteration_count > 1:
+        seed_seq = np.random.SeedSequence(seed)
+        seeds = np.concatenate((seeds, seed_seq.generate_state(iteration_count - 1)))
+
+    return seeds
