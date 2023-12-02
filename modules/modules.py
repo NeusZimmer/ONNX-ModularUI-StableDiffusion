@@ -25,7 +25,6 @@ class Borg20:
 
 
 class preProcess_modules(Borg20):
-    #import json
     all_modules=None
     _loaded=False
 
@@ -40,33 +39,36 @@ class preProcess_modules(Borg20):
         return json.dumps(self.__dict__)
 
     def __initclass__(self):
-        self.all_modules=self._launch_preprocess_modules()
+        #self.all_modules=self._launch_preprocess_modules()
+        self.all_modules=self._load_all_modules()
         self._loaded=True
 
     def check_available_modules(self,tab_name):
-        list_modules=[]
+        available_modules=[]
         for module in self.all_modules:
-            if tab_name in module[0]:
-                list_modules.append(module)
-        available_modules=list_modules
+            if tab_name in module['tabs']:
+                available_modules.append(module)
 
         return available_modules #do not use a class var, it will provide always the functions for the last UI tab loaded
 
 
 
-    def _launch_preprocess_modules(*args,**kwargs):
+    def _load_all_modules(*args,**kwargs):
+    #def _load_preprocess_modules(*args,**kwargs):
         from importlib import import_module
-        #lista=['wilcards','styles']
+
         lista=['wildcards_module','styles_module']
         modules_data=[]
 
         for elemento in lista:
             my_modulo=import_module('modules.'+elemento, package="StylesModule")
-            info=my_modulo.__init__("External Module %s Loaded" % elemento )
+            modules_info=my_modulo.__init__("External Module %s Loaded" % elemento )
             functions=(my_modulo.show,my_modulo.__call__)
-            modules_data.append(info+functions)
+            modules_info.update({"show": functions[0]})
+            modules_info.update({"call": functions[1]})
+            modules_data.append(modules_info)
 
-        return modules_data
+        return modules_data  # A list of dicts, one for each module
 
 
 

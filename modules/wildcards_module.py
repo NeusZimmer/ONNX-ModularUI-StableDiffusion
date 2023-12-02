@@ -1,18 +1,20 @@
 """
 Initialize:
 
-Return: tuple of 4 elements
-1st: a list of tab names where to be shown if ui component,
-2nd:  the area where to include the Ai and area to include the process to be done within the module
-3rd and 4th: two funcions: one named "__call__" and another named "__show__"
-if no function, create one with the return being the same as the imput or a pass function    
-    3rd: show: will be user to show the UI component of the module in the specified TAB & AREA, 
+Return: dict of 3 elements
+1st: a list of tab names where you want it to be included,
+2nd:  the area where to be shown in the UI
+3rd: the point where to execute the call 
+
+Additionally you need two funcions: one named "__call__" and another named "__show__"
+if no need for an specific function, create one with the return being the same as the imput or a pass function    
+    function __show__: the gradio elements to be shown into the UI component in the specified TAB & AREA, 
             def show(*args):
                 pass
-    4th: Call will be used to process a dictionay of parameters or a specific parameter, depending on where is to be included
+    function __call__: this will be called to process a dictionay of parameters or a specific parameter, depending on where is to be included
             def __call__(*args):
                 return args
-ATT: not implemented the area zones, fixed.
+
 tabs names:["txt2img","hires"] --
 
 
@@ -24,7 +26,12 @@ def __init__(*args):
     __name__='WildcardModule'
     print(args[0])
     #here a check of access of initializacion  if needed
-    return (["txt2img","hires"],"prompt_process")
+    #return (["txt2img","hires"],"prompt_process")
+
+    return {
+        'tabs':["txt2img","hires"],
+        'ui_position':"prompt_process",
+        'func_processing':'prompt_process'}
 
 def __call__(*args):
     #what to do when the module is called 

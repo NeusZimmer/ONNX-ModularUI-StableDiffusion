@@ -1,11 +1,17 @@
 
 
 #### MODULE NECESSARY FUNCTIONS (__init__ , show and __call__) ####
-def __init__(datos):
+def __init__(*args):
     __name__='StylesModule'
+    print(args[0])
     #here a check of access of initializacion  if needed
-    print(datos)
-    return (["txt2img","hires"],"prompt_process")
+    #return (["txt2img","hires"],"prompt_process")
+    # must return a dict: tabs: in which tabs is to be shown,ui_position: area within the UI tab and func_processing where is to be processed the data
+    return {
+        'tabs':["txt2img","hires"],
+        'ui_position':"prompt_process",
+        'func_processing':'prompt_process'}
+
 
 def show():
     show_styles_ui()
