@@ -84,6 +84,59 @@ class OnnxOptimumStableDiffusionHiResPipeline(ORTStableDiffusionPipeline):
 
     _optional_components = ["safety_checker", "feature_extractor"]
 
+    def reload_lowres(
+        self,
+        vae_decoder_session: ort.InferenceSession,
+        text_encoder_session: ort.InferenceSession,
+        scheduler: Union[DDIMScheduler, PNDMScheduler, LMSDiscreteScheduler],
+        vae_encoder_session: Optional[ort.InferenceSession] = None,
+        sess_options: Optional[ort.SessionOptions] = None,
+        low_res_model_path: Optional[str] = None,
+        low_res_provider:Optional[str] = None,
+        low_res_provider_options:Optional[str] = None,
+        ):
+        self.low_unet_session=None
+        self.unet=None
+        model_name=(low_res_model_path.split('\\'))[-1]
+        print(f"loading Low-Res Model:{model_name}.... ", end='')
+        low_unet_session = ORTModel.load_model(low_res_model_path+"/unet/model.onnx", low_res_provider,sess_options, provider_options=low_res_provider_options)
+        tokenizer2,config2=load_config_and_tokenizer(low_res_model_path)
+        super().__init__(
+                    vae_decoder_session,text_encoder_session,low_unet_session,
+                    config2, tokenizer2, scheduler,
+                    vae_encoder_session=vae_encoder_session,
+                    )
+        self.low_unet_session=self.unet
+        print(f"Done")
+
+    def reload_hires(
+        self,
+        model_path,
+        provider,
+        vae_decoder_session: ort.InferenceSession,
+        text_encoder_session: ort.InferenceSession,
+        scheduler: Union[DDIMScheduler, PNDMScheduler, LMSDiscreteScheduler],
+        vae_encoder_session= None,
+        sess_options: Optional[ort.SessionOptions] = None,
+        provider_options: Optional[dict] = None,
+        ):
+
+        self.unet_session=None
+        self.unet=None        
+        model_name=(model_path.split('\\'))[-1]
+        print(f"loading Hi-Res Model:{model_name} ....", end='')
+        unet_session = ORTModel.load_model(model_path+"/unet/model.onnx", provider,sess_options, provider_options=provider_options)
+
+        tokenizer,config=load_config_and_tokenizer(model_path)  
+        super().__init__(
+                    vae_decoder_session,text_encoder_session,unet_session,
+                    config, tokenizer, scheduler,
+                    vae_encoder_session=vae_encoder_session,
+                    )        
+        self.unet_session=self.unet
+        print(f"Done")   
+
+
     def __init__(
         self,
         model_path,
@@ -425,7 +478,8 @@ class OnnxOptimumStableDiffusionHiResPipeline(ORTStableDiffusionPipeline):
         #`guidance_scale = 1`corresponds to doing no classifier free guidance.
         do_classifier_free_guidance = guidance_scale > 1.0
 
-        prompt_embeds = self._encode_prompt(
+        self.unet=self.unet_session
+        prompt_embeds2 = self._encode_prompt(
             prompt,
             num_images_per_prompt,
             do_classifier_free_guidance,
@@ -434,6 +488,16 @@ class OnnxOptimumStableDiffusionHiResPipeline(ORTStableDiffusionPipeline):
             negative_prompt_embeds=negative_prompt_embeds,
         )
 
+        self.unet=self.low_unet_session        
+        prompt_embeds1 = self._encode_prompt(
+            prompt,
+            num_images_per_prompt,
+            do_classifier_free_guidance,
+            negative_prompt,
+            prompt_embeds=prompt_embeds,
+            negative_prompt_embeds=negative_prompt_embeds,
+        )
+        prompt_embeds = prompt_embeds1
         # define call parameters
         if prompt is not None and isinstance(prompt, str):
             batch_size = 1
@@ -498,7 +562,8 @@ class OnnxOptimumStableDiffusionHiResPipeline(ORTStableDiffusionPipeline):
                 callback,
                 callback_steps,
             )
-            generator = np.random.RandomState(1)
+            seed2 = generator.randint(0,64000)    #If we keep the generator with the same seed as one in the lowres steps, the output will be noisy
+            generator = np.random.RandomState(seed2)
         else:
             print(f"Procesing latent")
         #return [self.output_to_numpy(latent)],[self.output_to_numpy(latent)]
@@ -508,7 +573,7 @@ class OnnxOptimumStableDiffusionHiResPipeline(ORTStableDiffusionPipeline):
         latents_list.append(latent)
 
         if not process_latent:
-            Prueba=True
+            Prueba=False
             if Prueba:
                 #Mas rapido, pero resultado inicial queda demasiado borroso, imagen no usable, pero resultados similares en imagen final???
                 import torch.nn.functional as F
@@ -526,10 +591,13 @@ class OnnxOptimumStableDiffusionHiResPipeline(ORTStableDiffusionPipeline):
                 image_result=self.output_to_numpy(latent)
                 low_res_image=image_result
                 image_resize=self.resize_and_crop(image_result, hires_height, hires_width)
+                process_latent=False
+                #Faltaria aqui sacar del vae encoder una primera vez y unica. y dejar en los latents.
 
         else:
             image_resize=None
         self.unet=self.unet_session
+        prompt_embeds = prompt_embeds2
         i=0
         while i<hires_steps:
             print(f"{i+1} Pass of Hi-Res Generation")   
@@ -735,156 +803,6 @@ class OnnxOptimumStableDiffusionHiResPipeline(ORTStableDiffusionPipeline):
 
         return latents
 
-    def img2img_call_old(
-        self,
-        prompt,
-        prompt_embeds,
-        image: Union[np.ndarray, PIL.Image.Image] = None,
-        num_hires_steps: Optional[int] = 50,
-        guidance_scale: Optional[float] = 7.5,
-        num_images_per_prompt: Optional[int] = 1,
-        eta: Optional[float] = 0.0,
-        generator: Optional[np.random.RandomState] = None,
-        output_type: Optional[str] = "pil",
-        return_dict: bool = True,
-        batch_size=1,
-        strength=0.8,
-        do_classifier_free_guidance=True,
-        latent=None,
-        process_latent=False,
-        callback: Optional[Callable[[int, int, np.ndarray], None]] = None,
-        callback_steps: int = 1,
-    ):
-
-        num_inference_steps=num_hires_steps
-        # set timesteps
-        self.scheduler.set_timesteps(num_inference_steps)
-        latents_dtype = prompt_embeds.dtype
-
-        if not process_latent:
-            image = preprocess(image).cpu().numpy()
-            
-            # here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)
-            # of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`
-            # corresponds to doing no classifier free guidance.
-
-
-            image = image.astype(latents_dtype)
-            # encode the init image into latents and scale the latents
-            init_latents = self.vae_encoder(sample=image)[0]
-            init_latents = 0.18215 * init_latents
-            #print("Memory size of numpy array in bytes:",init_latents.nbytes)
-            path="./latents"
-
-            np.save(f"{path}/Low_Res_TempSave.npy", init_latents)            
-        else:
-            init_latents= latent
-
-        if isinstance(prompt, str):
-            prompt = [prompt]
-        if len(prompt) > init_latents.shape[0] and len(prompt) % init_latents.shape[0] == 0:
-            # expand init_latents for batch_size
-            deprecation_message = (
-                f"You have passed {len(prompt)} text prompts (`prompt`), but only {init_latents.shape[0]} initial"
-                " images (`image`). Initial images are now duplicating to match the number of text prompts. Note"
-                " that this behavior is deprecated and will be removed in a version 1.0.0. Please make sure to update"
-                " your script to pass as many initial images as text prompts to suppress this warning."
-            )
-            deprecate("len(prompt) != len(image)", "1.0.0", deprecation_message, standard_warn=False)
-            additional_image_per_prompt = len(prompt) // init_latents.shape[0]
-            init_latents = np.concatenate([init_latents] * additional_image_per_prompt * num_images_per_prompt, axis=0)
-        elif len(prompt) > init_latents.shape[0] and len(prompt) % init_latents.shape[0] != 0:
-            raise ValueError(
-                f"Cannot duplicate `image` of batch size {init_latents.shape[0]} to {len(prompt)} text prompts."
-            )
-        else:
-            init_latents = np.concatenate([init_latents] * num_images_per_prompt, axis=0)
-
-        # get the original timestep using init_timestep
-        offset = self.scheduler.config.get("steps_offset", 0)
-        #offset = int(strength*10)
-        init_timestep = int(num_inference_steps * strength) + offset
-        init_timestep = min(init_timestep, num_inference_steps)
-
-
-
-        timesteps = self.scheduler.timesteps.numpy()[-init_timestep]
-        timesteps = np.array([timesteps] * batch_size * num_images_per_prompt)
-
-
-        # add noise to latents using the timesteps
-        noise = generator.randn(*init_latents.shape).astype(latents_dtype)
-        init_latents = self.scheduler.add_noise(
-            torch.from_numpy(init_latents), torch.from_numpy(noise), torch.from_numpy(timesteps)
-        )
-
-        init_latents = init_latents.numpy()
-
-        # prepare extra kwargs for the scheduler step, since not all schedulers have the same signature
-        # eta (η) is only used with the DDIMScheduler, it will be ignored for other schedulers.
-        # eta corresponds to η in DDIM paper: https://arxiv.org/abs/2010.02502
-        # and should be between [0, 1]
-        accepts_eta = "eta" in set(inspect.signature(self.scheduler.step).parameters.keys())
-        extra_step_kwargs = {}
-        if accepts_eta:
-            extra_step_kwargs["eta"] = eta
-
-        latents = init_latents
-
-        t_start = max(num_inference_steps - init_timestep + offset, 0)
-        timesteps = self.scheduler.timesteps[t_start:].numpy()
-
-        """print(f"Fuerza:{strength}")
-        print(f"offset:{offset}")
-        print(f"t_start:{t_start}")   
-        print(f"timesteps:{timesteps}")"""
-        timestep_dtype = next(
-            (input.type for input in self.unet.model.get_inputs() if input.name == "timestep"), "tensor(float)"
-        )
-        timestep_dtype = ORT_TO_NP_TYPE[timestep_dtype]
-
-        for i, t in enumerate(self.progress_bar(timesteps)):
-            # expand the latents if we are doing classifier free guidance
-            latent_model_input = np.concatenate([latents] * 2) if do_classifier_free_guidance else latents
-            latent_model_input = self.scheduler.scale_model_input(torch.from_numpy(latent_model_input), t)
-            latent_model_input = latent_model_input.cpu().numpy()
-
-            # predict the noise residual
-            timestep = np.array([t], dtype=timestep_dtype)
-            noise_pred = self.unet(sample=latent_model_input, timestep=timestep, encoder_hidden_states=prompt_embeds)[
-                0
-            ]
-
-            # perform guidance
-            if do_classifier_free_guidance:
-                noise_pred_uncond, noise_pred_text = np.split(noise_pred, 2)
-                noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
-
-            # compute the previous noisy sample x_t -> x_t-1
-            scheduler_output = self.scheduler.step(
-                torch.from_numpy(noise_pred), t, torch.from_numpy(latents), **extra_step_kwargs
-            )
-            latents = scheduler_output.prev_sample.numpy()
-
-            # call the callback, if provided
-            if callback is not None and i % callback_steps == 0:
-                callback(i, t, latents)
-        #latents2 =  latents
-        """latents = 1 / 0.18215 * latents
-        # image = self.vae_decoder(latent_sample=latents)[0]
-        # it seems likes there is a strange result for using half-precision vae decoder if batchsize>1
-        image = np.concatenate(
-            [self.vae_decoder(latent_sample=latents[i : i + 1])[0] for i in range(latents.shape[0])]
-        )
-
-        image = np.clip(image / 2 + 0.5, 0, 1)
-        image = image.transpose((0, 2, 3, 1))
-
-        #if output_type == "pil":
-        image = self.numpy_to_pil(image)
-
-        return image[0],latents2"""
-        return latents
 
     def output_to_numpy(self,latents):
         latents = 1 / 0.18215 * latents
