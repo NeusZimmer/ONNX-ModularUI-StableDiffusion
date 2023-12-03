@@ -1,0 +1,1 @@
+https://huggingface.co/Neus/CommonModels/tree/main/dis-isnet
