@@ -7,7 +7,7 @@ ftfy
 spacy
 scipy
 safetensors
-gradio
+gradio == 3.5.2
 omegaconf
 onnx
 onnxconverter-common
