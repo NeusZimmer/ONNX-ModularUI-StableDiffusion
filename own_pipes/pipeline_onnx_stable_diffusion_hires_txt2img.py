@@ -41,14 +41,14 @@ logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion_img2img.preprocess with 8->64
 def preprocess(image):
-
+    """
     warnings.warn(
         (
             "The preprocess method is deprecated and will be removed in a future version. Please"
             " use VaeImageProcessor.preprocess instead"
         ),
         FutureWarning,
-    )
+    )"""
     if isinstance(image, torch.Tensor):
         return image
     elif isinstance(image, PIL.Image.Image):
@@ -469,7 +469,8 @@ class OnnxOptimumStableDiffusionHiResPipeline(ORTStableDiffusionPipeline):
         hires_steps=2,
         provide_imgs_for_all_hires_steps=True,
         callback: Optional[Callable[[int, int, np.ndarray], None]] = None,
-        callback_steps: int = 1
+        callback_steps: int = 1,
+        upscale_method: bool = True         #True= Torch, False=VAE
     ): 
         # check inputs. Raise error if not correct
         self.check_inputs_txt2img(prompt, height, width, callback_steps, negative_prompt, prompt_embeds, negative_prompt_embeds)
@@ -564,6 +565,7 @@ class OnnxOptimumStableDiffusionHiResPipeline(ORTStableDiffusionPipeline):
             )
             seed2 = generator.randint(0,64000)    #If we keep the generator with the same seed as one in the lowres steps, the output will be noisy
             generator = np.random.RandomState(seed2)
+            print("Cambiado el gen")
         else:
             print(f"Procesing latent")
         #return [self.output_to_numpy(latent)],[self.output_to_numpy(latent)]
@@ -573,8 +575,7 @@ class OnnxOptimumStableDiffusionHiResPipeline(ORTStableDiffusionPipeline):
         latents_list.append(latent)
 
         if not process_latent:
-            Prueba=False
-            if Prueba:
+            if upscale_method:
                 #Mas rapido, pero resultado inicial queda demasiado borroso, imagen no usable, pero resultados similares en imagen final???
                 import torch.nn.functional as F
                 import torch.onnx
@@ -626,7 +627,8 @@ class OnnxOptimumStableDiffusionHiResPipeline(ORTStableDiffusionPipeline):
             strength = strength +(strength_var*i)
             #if strength < 0.0: strength=0.0
             latents_list.append(latent)
-
+            #seed2 = generator.randint(0,64000)    #If we keep the generator with the same seed as one in the lowres steps, the output will be noisy
+            #generator = np.random.RandomState(seed2)
 
         
         images=[]
