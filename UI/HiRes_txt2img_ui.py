@@ -90,6 +90,8 @@ def show_HiRes_txt2img_ui():
 
             with gr.Row():
                 gr.Markdown("Other parameters")
+            with gr.Row():
+                upscale_method=gr.Radio(["Torch", "VAE"], value="Torch", label="Upscale method", interactive=True,visible=True)
                 save_textfile=gr.Checkbox(label="Save prompt into a txt file")
                 save_low_res=gr.Checkbox(label="Save generated Low-Res Img")
 
@@ -145,7 +147,7 @@ def show_HiRes_txt2img_ui():
     #reload_textenc_btn.click(fn=change_textenc,inputs=model_drop,outputs=None)
 
 
-    list_of_All_Parameters=[model_drop,low_model_drop,prompt_t0,neg_prompt_t0,sch_t0,iter_t0,batch_t0,steps_t0,steps_t1,guid_t0,height_t0,width_t0,height_t1,width_t1,eta_t0,seed_t0,fmt_t0,strength_t0,hires_passes_t1,save_textfile, save_low_res,latent_formula,name_of_latent,latents_experimental2,hires_pass_variation]    
+    list_of_All_Parameters=[model_drop,low_model_drop,prompt_t0,neg_prompt_t0,sch_t0,iter_t0,batch_t0,steps_t0,steps_t1,guid_t0,height_t0,width_t0,height_t1,width_t1,eta_t0,seed_t0,fmt_t0,strength_t0,hires_passes_t1,save_textfile, save_low_res,latent_formula,name_of_latent,latents_experimental2,hires_pass_variation,upscale_method]    
 
     memory_btn.click(fn=UI_common.clean_memory_click, inputs=None, outputs=None)    
     reload_hires_btn.click(fn=reload_hires,inputs=model_drop,outputs=None)
@@ -352,7 +354,7 @@ def generate_click(
     iter_t0,batch_t0,steps_t0,steps_t1,guid_t0,height_t0,
     width_t0,height_t1,width_t1,eta_t0,seed_t0,fmt_t0,strength,
     hires_passes_t1,save_textfile, save_low_res,
-    latent_formula,name_of_latent,latents_experimental2,hires_pass_variation):
+    latent_formula,name_of_latent,latents_experimental2,hires_pass_variation,upscale_method):
 
     from Engine.General_parameters import running_config
 
@@ -424,7 +426,9 @@ def generate_click(
             batch_t0,
             seed,
             strength,
-            strength_var)
+            strength_var,
+            upscale_method
+            )
         
         for hires_image in hires_images:
             images.append(hires_image)
