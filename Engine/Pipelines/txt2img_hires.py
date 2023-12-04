@@ -232,7 +232,7 @@ class txt2img_hires_pipe(Borg10):
 
         return seeds[:iteration_count]
 
-    def run_inference(self,prompt,neg_prompt,hires_passes,height,width,hires_height,hires_width,steps,hires_steps,guid,eta,batch,seed,strength,strength_var):
+    def run_inference(self,prompt,neg_prompt,hires_passes,height,width,hires_height,hires_width,steps,hires_steps,guid,eta,batch,seed,strength,strength_var,upscale_method):
         import numpy as np
         from Engine.General_parameters import running_config
 
@@ -247,6 +247,8 @@ class txt2img_hires_pipe(Borg10):
             loaded_latent=self.get_initial_latent(steps,multiplier,rng,strength)            
         else:
             loaded_latent=None
+
+        upscale_method = True if upscale_method=="Torch" else False
 
         lowres_image,hires_image = self.hires_pipe(
             prompt=prompt,
@@ -269,7 +271,9 @@ class txt2img_hires_pipe(Borg10):
             #callback= self.__callback,
             #callback_steps = running_config().Running_information["Callback_Steps"],
             #generator=rng).images
-            generator=rng)
+            generator=rng,
+            upscale_method=upscale_method
+            )
 
         dictio={'prompt':prompt,'neg_prompt':neg_prompt,'height':height,'width':width,'steps':steps,'guid':guid,'eta':eta,'batch':batch,'seed':seed}
         from Engine.General_parameters import running_config
