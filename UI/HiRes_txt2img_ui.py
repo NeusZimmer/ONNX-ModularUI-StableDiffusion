@@ -20,7 +20,6 @@ global list_modules
 list_modules=[]
 list_modules=preProcess_modules().check_available_modules("hires")
 
-
 def show_HiRes_txt2img_ui():
     global list_modules
     model_list = UI_common.get_model_list("txt2img")
@@ -30,8 +29,11 @@ def show_HiRes_txt2img_ui():
     with gr.Row(): 
         with gr.Column(scale=13, min_width=650):
             model_drop = gr.Dropdown(model_list, value=(model_list[0] if len(model_list) > 0 else None), label="HiRes model", interactive=True)
-            model_list.append("None")
-            low_model_drop = gr.Dropdown(model_list, value='None', label="LowRes model (None=Same as HiRes)", interactive=True)
+            #model_list.append("None")
+            with gr.Row():
+                model_list=["None"]+model_list
+                low_model_drop = gr.Dropdown(model_list, value='None', label="LowRes model (None=Same as HiRes)", interactive=True)
+                model_update_btn=gr.Button("Reload List").click(fn=renew_models,inputs=None,outputs=[model_drop,low_model_drop])
             with gr.Accordion("Additional options",open=False):
                 #reload_vae_btn = gr.Button("VAE Decoder:Apply Changes & Reload")
                 #reload_textenc_btn = gr.Button("Text Encoder Reload")           
@@ -181,6 +183,13 @@ def cancel():
 
 
     Inference_Session.RunOptions=Runtime_options
+
+
+def renew_models():
+    model_list = UI_common.get_model_list("txt2img")
+    return gr.Dropdown.update(choices=model_list, value=(model_list[0] if len(model_list) > 0 else None)),gr.Dropdown.update(choices=["None"]+model_list, value="None"),
+
+
 
 def vae_output_to_numpy():
     import numpy as np
