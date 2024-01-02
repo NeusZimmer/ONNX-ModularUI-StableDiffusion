@@ -28,6 +28,7 @@ def init_ui():
                 Convert_ControlNet=gr.Checkbox(label="Convert as ControlNet UNET Model", value=False, interactive=False,visible=False)#still dont implemented
                 Generate_Config=gr.Checkbox(label="Generate Config File", value=False, interactive=True)
                 gr.Markdown("Additional")
+                LCM_model=gr.Checkbox(label="The Model is LCM?", value=False, interactive=False,visible=False) #not working
                 make_fp16=gr.Checkbox(label="Convert to FP16", value=True, interactive=True)
                 slicing=gr.Radio(["auto","max"],value="auto",label="Attention Slicing")
                 optimize=gr.Checkbox(label="Optimize", value=False, interactive=True)
@@ -71,11 +72,11 @@ def init_ui():
                 save_asfp16_btn = gr.Button("Save as fp16")
 
 
-        all_inputs=[model_drop,Convert_TextEnc,Convert_Tokenizer,Convert_Scheduler,Convert_VaeEnc,Convert_VaeDec,Convert_UNET,Convert_ControlNet,Generate_Config,make_fp16,slicing,optimize,device,directory_in,directory_out,informacion]
+        all_inputs=[model_drop,Convert_TextEnc,Convert_Tokenizer,Convert_Scheduler,Convert_VaeEnc,Convert_VaeDec,Convert_UNET,Convert_ControlNet,Generate_Config,make_fp16,slicing,optimize,device,directory_in,directory_out,informacion,LCM_model]
 
     ################BUTTON ACTIONS#####################
         reload_availablemodels_btn.click(fn=get_list_of_models,inputs=directory_in,outputs=model_drop)
-        load_model_btn.click(fn=_loadmodel,inputs=[model_drop,device],outputs=informacion)
+        load_model_btn.click(fn=_loadmodel,inputs=[model_drop,device,LCM_model],outputs=informacion)
         process_model_btn.click(fn=process_model,inputs=all_inputs,outputs=informacion)
         unload_model_btn.click(fn=unload,inputs=informacion,outputs=informacion)
         save_memory_btn.click(fn=save_memory_todisk, inputs=[save_memory_path,informacion], outputs=informacion)
@@ -129,6 +130,28 @@ def optimize_onnx_model(model_path,informacion):
     optimization_options.enable_qordered_matmul = False
     optimization_options.enable_nhwc_conv = False # On by default in ORT optimizer, turned off as it causes performance issues
 
+    ####SAcados de olive:
+
+    """optimization_options.enable_gelu = True,
+    optimization_options.enable_layer_norm = True,
+    optimization_options.enable_attention = True,
+    optimization_options.use_multi_head_attention = True,
+    optimization_options.enable_skip_layer_norm = False,
+    optimization_options.enable_embed_layer_norm = True,
+    optimization_options.enable_bias_skip_layer_norm = False,
+    optimization_options.enable_bias_gelu = True,
+    optimization_options.enable_gelu_approximation = False,
+    optimization_options.enable_qordered_matmul = False,
+    optimization_options.enable_shape_inference = True,
+    optimization_options.enable_gemm_fast_gelu = False,
+    optimization_options.enable_nhwc_conv = False,
+    optimization_options.enable_group_norm = True,
+    optimization_options.enable_bias_splitgelu = False,
+    optimization_options.enable_packed_qkv = True,
+    optimization_options.enable_packed_kv = True,
+    optimization_options.enable_bias_add = False"""
+
+
     optimizer = optimize_model(
         #input = unet_model_path,
         input =unet_path,
@@ -180,7 +203,7 @@ def get_list_of_models(path:str):
     models=_get_list_of_models(path)
     return gr.Dropdown.update(choices=models,value=models[0])
 
-def _loadmodel(model,device):
+def _loadmodel(model,device,LCM_model):
     from diffusers.pipelines.stable_diffusion.convert_from_ckpt import download_from_original_stable_diffusion_ckpt
     import torch
     show_debug=False
@@ -197,6 +220,21 @@ def _loadmodel(model,device):
             from_safetensors= safetensors,
             local_files_only=True,
             )
+    from diffusers.pipelines  import LatentConsistencyModelPipeline
+    #loaded_model =LatentConsistencyModelPipeline.from_pretrained("SimianLuo/LCM_Dreamshaper_v7")
+    #loaded_model =LatentConsistencyModelPipeline.from_pretrained(pretrained_model_name_or_path=model)
+    """loaded_model =LatentConsistencyModelPipeline(unet=loaded_model.unet,
+                                                vae=loaded_model.vae,
+                                                text_encoder=loaded_model.text_encoder,
+                                                tokenizer=loaded_model.tokenizer,
+                                                scheduler=loaded_model.scheduler,
+                                                requires_safety_checker=False,
+                                                safety_checker=None,
+                                                feature_extractor=None)"""
+    #print(type(loaded_model))
+    #loaded_model.save_pretrained("D:\\model1\\xeno")
+    #from diffusers.pipelines  import LatentConsistencyModelPipeline
+    #loaded_model =LatentConsistencyModelPipeline.from_pretrained("D:\\model1\\xeno")
     """
     checkpoint_path_or_dict: Union[str, Dict[str, torch.Tensor]],
     original_config_file: str = None,
@@ -227,7 +265,9 @@ def _loadmodel(model,device):
     #Atencion a esto, añadir a la UI:'load_lora_into_text_encoder', 'load_lora_into_unet ??
     debug(type(loaded_model),area,show_debug)
     debug(loaded_model.__dict__,area,show_debug)
-
+    """print(type(loaded_model))
+    print(loaded_model.unet.__dict__)
+    print(loaded_model.unet._normalized_config)"""
     return ("Model loaded: %s" % model)
 
 def unload(text):
@@ -239,7 +279,7 @@ def unload(text):
 
 def convert_params_todict(args):
     #just copy the line of list of all inputs and make it a string
-    all_inputs="model_drop,Convert_TextEnc,Convert_Tokenizer,Convert_Scheduler,Convert_VaeEnc,Convert_VaeDec,Convert_UNET,Convert_ControlNet,Generate_Config,make_fp16,slicing,optimize,device,directory_in,directory_out,informacion".split(',')
+    all_inputs="model_drop,Convert_TextEnc,Convert_Tokenizer,Convert_Scheduler,Convert_VaeEnc,Convert_VaeDec,Convert_UNET,Convert_ControlNet,Generate_Config,make_fp16,slicing,optimize,device,directory_in,directory_out,informacion,LCM_model".split(',')
     dictio={}
     for count, item in enumerate(all_inputs):
         dictio.update({item:args[count]}) 
@@ -300,7 +340,6 @@ def process_model(*args):
             print("Converting fp16 simple")
             textenc_model_path=convert_to_fp16(textenc_model_path)
         returned_text=returned_text+f"\nText encoder model converted"
-
     if params['Convert_VaeEnc']:
         #Must convert and save to disk in a subdirectory
         vae_encoder_path=convert_vae_encoder(loaded_model,output_path,opset,params["device"])
@@ -311,7 +350,12 @@ def process_model(*args):
         returned_text=returned_text+f"\nVae Decoder model converted"
     if params['Convert_UNET']:
         unet_model_path=extract_unet(loaded_model,output_path,opset,params["device"])
-        print(unet_model_path)        
+        #print(unet_model_path)
+        #del loaded_model.unet
+        #del loaded_model.vae  
+        #del loaded_model.text_encoder
+        #del loaded_model.unet
+        del loaded_model
         if params['optimize']:            
             print("UNET OPTIMIZATION PROCESS")
             unet_model_path=convert_unet_optimized(unet_model_path,params["make_fp16"])
@@ -319,13 +363,13 @@ def process_model(*args):
         else:
             #Must convert and save to disk in a subdirectory (created the config file , scheduler, and tokenizer?)
             if params["make_fp16"]:
-                print("Converting fp16 simple")
+                print("Converting to fp16 not optimized")
                 unet_model_path=convert_to_fp16(unet_model_path)
             else:
                 print("Model is extracted file, it will work and allow further processing")
                 #save_export_to_onnx32()
             returned_text=returned_text+f"\nUnet model fp32 converted: extracted files instead one weights file"
-
+    
     returned_text=returned_text+f"\nONNX Model is here:{output_path}"
 
     return params['informacion']+returned_text
@@ -386,7 +430,6 @@ def debug(element,area,imp=True):
 def convert_unet_optimized(unet_path,fp16):
     from onnxruntime.transformers.fusion_options import FusionOptions
     from onnxruntime.transformers.optimizer import optimize_model
-    #model_dir=os.path.dirname("d:/model1/salsRealism_betaV40-auto-fp32/unet/model.onnx")
     unet_path=Path(unet_path)
     unet_model_path = str(unet_path.absolute().as_posix())
     unet_dir = os.path.dirname(unet_model_path)
@@ -446,6 +489,11 @@ def extract_unet(pipeline,output_path,opset,device):
     text_hidden_size = pipeline.text_encoder.config.hidden_size
     dtype=torch.float32
 
+    if False:  #Para prueba conversion LCM
+        ordered_input_names=["sample", "timestep", "encoder_hidden_states","timestep_cond","time_cond_proj_dim", "return_dict"]
+    else: #models normales
+        ordered_input_names=["sample", "timestep", "encoder_hidden_states", "return_dict"]
+
     onnx_export(
         pipeline.unet,
         model_args=(
@@ -453,15 +501,18 @@ def extract_unet(pipeline,output_path,opset,device):
                 unet_sample_size).to(device=device, dtype=dtype),
             torch.randn(2).to(device=device, dtype=dtype),
             torch.randn(2, num_tokens, text_hidden_size).to(device=device, dtype=dtype),
+            #torch.randn(1,256).to(device=device, dtype=dtype),  #quitar para no lcm
+            #256,
             False,
         ),
         output_path=unet_path,
-        ordered_input_names=["sample", "timestep", "encoder_hidden_states", "return_dict"],
+        ordered_input_names=ordered_input_names,
         output_names=["out_sample"],  # has to be different from "sample" for correct tracing
         dynamic_axes={
             "sample": {0: "unet_sample_batch", 1: "unet_sample_channels", 2: "unet_sample_height", 3: "unet_sample_width"},
             "timestep": {0: "unet_timestep_batch"},
             "encoder_hidden_states": {0: "unet_ehs_batch", 1: "unet_ehs_sequence"},
+            #"timestep_cond":{0: "timestep_cond_sample"},  #quitar para no lcm 
         },
         opset=opset,
     )
@@ -483,7 +534,6 @@ def convert_scheduler(pipe,path):
 
 
 def generate_model_config(pipe,path):
-    print("Pending to be implemented, just copy one from any other model")
     pipe.save_config(path)
     return
 
@@ -619,7 +669,7 @@ def convert_to_fp16(
     shutil.rmtree(model_dir)
     os.mkdir(model_dir)
     # save FP16 model
-    onnx.save(fp16_model, model_path)
+    onnx.save(fp16_model, model_path, all_tensors_to_one_file=False)
     return model_path
 
 @torch.no_grad()
@@ -643,7 +693,7 @@ def convert_to_fp16_2(
     #shutil.rmtree(model_dir)
     #os.mkdir(model_dir)
     # save FP16 model
-    onnx.save(fp16_model, model_path2)
+    onnx.save(fp16_model, model_path2, all_tensors_to_one_file=False)
     return model_path
 if __name__== "__main__":
     converter =init_ui()
