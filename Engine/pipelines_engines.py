@@ -38,10 +38,6 @@ class Borg:
     def __init__(self):
         self.__dict__ = self._shared_state
 
-class Borg1:
-    _shared_state = {}
-    def __init__(self):
-        self.__dict__ = self._shared_state
 class Borg2:
     _shared_state = {}
     def __init__(self):
@@ -52,12 +48,8 @@ class Borg4:
     def __init__(self):
         self.__dict__ = self._shared_state
 
-class Borg6:
-    _shared_state = {}
-    def __init__(self):
-        self.__dict__ = self._shared_state
 
-class SchedulersConfig(Borg):
+class SchedulersConfig1(Borg):
     available_schedulers= None
     selected_scheduler= None
     _model_path = None
@@ -186,7 +178,7 @@ class SchedulersConfig(Borg):
         return self.selected_scheduler
 
 
-class inpaint_pipe(Borg2):
+class inpaint_pipe1(Borg2):
     inpaint_pipe = None
     model = None
     seeds = []
@@ -364,7 +356,7 @@ class instruct_p2p_pipe(Borg4):
         self.model = None
         gc.collect()
 
-def seed_generator(seed,iteration_count):
+def seed_generator1(seed,iteration_count):
     import numpy as np
     # generate seeds for iterations
     if seed == "" or seed == None:

@@ -1,11 +1,54 @@
 
 ##Here only common functions who does not call UI variables
-import os,re,PIL
+import os,re,PIL,numpy
 from PIL import Image, PngImagePlugin
 
+class generator(numpy.random.RandomState):
+    def __init__(self,seed,generator_type='numpy'):  #True = numpy
+        numpy_or_torch=True if generator_type=='numpy'else False
+        self.seed=seed
+        if numpy_or_torch:
+            super().__init__(self.seed)
+        else:
+            import torch
+            self.torch_gen = torch.Generator()
+            self.torch_gen.manual_seed(self.seed)
+            self.randn=self.random
+            self.randint
+
+    def randint(self,low,max):
+        import torch
+        #dato=self.torch_gen.seed()
+        dato=torch.random(self.torch_gen,low,max)
+        return dato
+    
+    def random(self,*args):
+    #def random(self,shape):
+        shape=tuple(args)
+        import torch
+        #torch.manual_seed(self.seed)
+        #retorno=torch.randn(shape)
+        retorno=torch.randn(shape, generator=self.torch_gen)
+        try:
+            return retorno.numpy()
+        except:
+            pass
+        #finally:
+        #    self=retorno
 
 
-
+def create_generator(seed,generator_type='numpy'):
+    import torch
+    import numpy as np
+    
+    if generator_type=='numpy':
+        generator1=generator(seed,generator_type='numpy')
+    elif generator_type=='torch':
+        generator1=generator(seed,generator_type='torch')
+    else:
+        print("Generator type does not configured or recognized")
+    #print(type(generator1))
+    return generator1
 
 def numpy_to_pil(images):
     """
@@ -73,16 +116,18 @@ def save_image(batch_images,info,next_index,output_path,style=None,save_textfile
     process_tags=True
     if not process_tags:
         for image in batch_images:
-            image.save(os.path.join(output_path,f"{next_index:06}{low_res_text}-0{i}_{short_prompt}.png",),optimize=True,pnginfo=metadata,)
+            if image!=None:
+                image.save(os.path.join(output_path,f"{next_index:06}{low_res_text}-0{i}_{short_prompt}.png",),optimize=True,pnginfo=metadata,)
             i+=1
     else:
         for image in batch_images:
-            image.save(os.path.join(output_path,f"{next_index:06}{low_res_text}-0{i}.png",),optimize=True,pnginfo=metadata,)
-            if save_textfile and (i==0):
-                print(f"low_res_text:{low_res_text}-{low_res_text}")
-                print(f"low_res_text:{next_index:06}{low_res_text}")
-                with open(os.path.join(output_path,f"{next_index:06}{low_res_text}-0{i}.txt"), 'w',encoding='utf8') as txtfile:
-                    txtfile.write(f"{short_prompt1} \nstyle_pre:{style_pre}\nstyle_post:{style_post}")
+            if image!=None:
+                image.save(os.path.join(output_path,f"{next_index:06}{low_res_text}-0{i}.png",),optimize=True,pnginfo=metadata,)
+                if save_textfile and (i==0):
+                    #print(f"low_res_text:{low_res_text}-{low_res_text}")
+                    #print(f"low_res_text:{next_index:06}{low_res_text}")
+                    with open(os.path.join(output_path,f"{next_index:06}-{low_res_text}-0{i}.txt"), 'w',encoding='utf8') as txtfile:
+                        txtfile.write(f"{short_prompt1} \nstyle_pre:{style_pre}\nstyle_post:{style_post}")
             i+=1
 
 def PIL_resize_and_crop(input_image: PIL.Image.Image, height: int, width: int):

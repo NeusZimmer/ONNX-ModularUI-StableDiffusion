@@ -357,8 +357,8 @@ def get_weighted_text_embeddings(
     # to avoid doing two forward passes
     if uncond_prompt is not None:
         return text_embeddings, uncond_embeddings
-
-    return text_embeddings
+    print("Atencion linea 360 de lpw_pipe, añadido el retorno None para lcm")
+    return text_embeddings,None
 
 
 def _encode_prompt(
