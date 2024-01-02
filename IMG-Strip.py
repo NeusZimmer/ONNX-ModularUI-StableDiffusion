@@ -62,7 +62,7 @@ def test_fn(image,threshold):
 
     #session = onnxruntime.InferenceSession("model_isnet.onnx_fp16.onnx",providers=['DmlExecutionProvider', 'CPUExecutionProvider'])        
     #results = session.run(["output"], {"image": input_image_resized_np.astype(np.float16})
-    session = onnxruntime.InferenceSession("model_isnet.onnx",providers=['CUDAExecutionProvider','DmlExecutionProvider', 'CPUExecutionProvider'])
+    session = onnxruntime.InferenceSession("./modules/dis-isnet/model_isnet.onnx",providers=['CUDAExecutionProvider','DmlExecutionProvider', 'CPUExecutionProvider'])
     results = session.run(["output"], {"image": input_image_resized_np.astype(np.float32)})
 
     result=results[0]

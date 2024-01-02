@@ -3,6 +3,13 @@ from Engine.General_parameters import Engine_Configuration
 from Engine.General_parameters import UI_Configuration
 from Engine.General_parameters import running_config
 
+from UI import UI_placement_areas
+from modules.modules import preProcess_modules
+global list_modules
+list_modules=[]
+list_modules=preProcess_modules().check_available_modules("main_ui")
+
+
 def init_ui():
     ui_config=UI_Configuration()
     with gr.Blocks(title="ONNX Difussers Modular UI",css= css1) as demo:
@@ -59,6 +66,15 @@ def init_ui():
                     #from UI import config_ui_wildcards as wilcards_ui_config
                     #wilcards_ui_config.show_wilcards_configuration()
 
+        ######## Show new ta areas #############################
+        #UI_placement_areas.show_new_tabs(list_modules,"main_ui")
+        ########################################################
+
+
+        ######## Show footer areas #############################
+        with gr.Row():
+            UI_placement_areas.show_footer_area(list_modules,"main_ui")
+        ########################################################
     return demo
 	
 
