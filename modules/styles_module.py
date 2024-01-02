@@ -12,15 +12,20 @@ def __init__(*args):
         'ui_position':"prompt_process",
         'func_processing':'prompt_process'}
 
+def is_global_ui():
+    return False
+
+def is_global_function():
+    return False
 
 def show():
     show_styles_ui()
 
 def __call__(datos):
     #what to do when the module is call __call__
-    #print("Processing Styles Module")
+    #print("Processing Styles Module2")
     if type(datos)==dict:
-        print("Entrando Styles como dict")
+        #print("Entrando Styles como dict")
         prompt = datos['prompt_t0']
         prompt = process_prompt(prompt)
         datos.update({'prompt_t0':prompt})
@@ -28,7 +33,7 @@ def __call__(datos):
         #print("Entrando Styles como str")
         datos=process_prompt(datos)
     else:
-        print("Not recornized input for module Styles %s" % datos) 
+        print("Not recognized input for module Styles %s" % type(datos)) 
         datos=None
 
     return datos

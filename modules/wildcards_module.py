@@ -48,6 +48,11 @@ def __call__(*args):
             print("Not recognized input for module wildcards %s" % datos) 
     return datos1
 
+def is_global_ui():
+    return False
+
+def is_global_function():
+    return False
 
 def show():
     import gradio

@@ -49,7 +49,7 @@ class preProcess_modules(Borg20):
             if tab_name in module['tabs']:
                 available_modules.append(module)
 
-        return available_modules #do not use a class var, it will provide always the functions for the last UI tab loaded
+        return available_modules #do not use a self var, it will provide always the functions for the last UI tab loaded
 
 
 
@@ -57,15 +57,18 @@ class preProcess_modules(Borg20):
     #def _load_preprocess_modules(*args,**kwargs):
         from importlib import import_module
 
-        lista=['wildcards_module','styles_module']
+        #lista=['library_module','wildcards_module','styles_module','image_to_numpy_module','reload_hires_module']
+        lista=['wildcards_module','styles_module','image_to_numpy_module']
         modules_data=[]
 
         for elemento in lista:
             my_modulo=import_module('modules.'+elemento, package="StylesModule")
             modules_info=my_modulo.__init__("External Module %s Loaded" % elemento )
-            functions=(my_modulo.show,my_modulo.__call__)
+            functions=(my_modulo.show,my_modulo.__call__,my_modulo.is_global_ui,my_modulo.is_global_function)
             modules_info.update({"show": functions[0]})
             modules_info.update({"call": functions[1]})
+            modules_info.update({"is_global_ui": functions[2]})
+            modules_info.update({"is_global_function": functions[3]})
             modules_data.append(modules_info)
 
         return modules_data  # A list of dicts, one for each module
