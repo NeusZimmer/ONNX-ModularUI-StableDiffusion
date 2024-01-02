@@ -3,7 +3,8 @@ import os,gc,re
 from Engine.General_parameters import Engine_Configuration as Engine_config
 from Engine.General_parameters import running_config
 from Engine.General_parameters import UI_Configuration
-from Engine import pipelines_engines
+#from Engine import pipelines_engines
+from Engine import SchedulersConfig
 from UI import UI_common_funcs as UI_common
 from Engine import engine_common_funcs as Engine_common
 from PIL import Image, PngImagePlugin
@@ -53,7 +54,7 @@ def show_txt2img_ui():
 
             with gr.Row():
                 iter_t0 = gr.Slider(1, 100, value=1, step=1, label="iteration count")
-                batch_t0 = gr.Slider(1, 4, value=1, step=1, label="batch size", interactive=False)
+                batch_t0 = gr.Slider(1, 4, value=1, step=1, label="batch size", interactive=True)
             steps_t0 = gr.Slider(1, 3000, value=16, step=1, label="steps")
             guid_t0 = gr.Slider(0, 50, value=7.5, step=0.1, label="guidance")
             height_t0 = gr.Slider(64, 2048, value=512, step=64, label="height")
@@ -135,24 +136,35 @@ def _latent_to_img():
     except:
         print("Not numpys found.Wrong Directory or no files inside?")        
 
-
-    vaedec=pipelines_engines.Vae_and_Text_Encoders().vae_decoder
-
-    if vaedec==None:
+    #from Engine import Vae_and_Text_Encoders
+    #vaedec=Vae_and_Text_Encoders().vae_decoder
+    #from diffusers import OnnxRuntimeModel
+    #vaedec = OnnxRuntimeModel.from_pretrained("D:\\models\\ModelosVAE\\vae_decoder-standar", provider="DmlExecutionProvider")
+    np_load_old = np.load
+    #np.load = lambda *a,**k: np_load_old(*a, allow_pickle=True, **k)
+    """if vaedec==None:
         print("NO VAE LOADED, if you got a default VAE path configurated it will be loaded, if not, will raise an exception")
-        vaedec= pipelines_engines.Vae_and_Text_Encoders().load_vaedecoder("") 
-
+        vaedec_sess= Vae_and_Text_Encoders().load_vaedecoder("") 
+        vaedec=Vae_and_Text_Encoders().convert_session_to_model(vaedec_sess,"vaedec")
+        init_latents = vaeencoder_session.run(['latent_sample'],{'sample': image})[0]
+    """
+    from Engine import Vae_and_Text_Encoders
+    vaedec_sess =Vae_and_Text_Encoders().load_vaedecoder("") 
     for latent in latent_list:
         loaded_latent=np.load(f"./latents/{latent}")
         loaded_latent = 1 / 0.18215 * loaded_latent
-        image=vaedec(latent_sample=loaded_latent)[0]  
+        #image=vaedec(latent_sample=loaded_latent)[0]  
+        image= vaedec_sess.run(['sample'],{'latent_sample': loaded_latent})[0]
         name= latent[:-3]
         name= name+"png"
         image = np.clip(image / 2 + 0.5, 0, 1)
         image = image.transpose((0, 2, 3, 1))
         image = Engine_common.numpy_to_pil(image)[0]
         image.save(f"./latents/{name}",optimize=True)
-
+        print(f"Saved:{name}")
+    np.load=np_load_old
+    #del vaedec
+    del vaedec_sess
     return
 
 def _activate_latent_save(activate_latent_save):
@@ -207,12 +219,12 @@ def gallery_view(images,dict_statuses):
 
 
 def get_schedulers_list():
-    sched_config = pipelines_engines.SchedulersConfig()
+    sched_config = SchedulersConfig()
     sched_list =sched_config.available_schedulers
     return sched_list
 
 def select_scheduler(sched_name,model_path):
-    return pipelines_engines.SchedulersConfig().scheduler(sched_name,model_path)
+    return SchedulersConfig().scheduler(sched_name,model_path)
 
 
 

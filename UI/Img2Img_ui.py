@@ -6,7 +6,8 @@ from Engine.General_parameters import Engine_Configuration
 from Engine.General_parameters import running_config
 from Engine.General_parameters import UI_Configuration
 from UI import UI_common_funcs as UI_common
-from Engine import pipelines_engines
+from Engine import SchedulersConfig
+#from Engine import pipelines_engines
 
 
 
@@ -61,12 +62,12 @@ def gallery_view(images,dict_statuses):
 
 
 def get_schedulers_list():
-    sched_config = pipelines_engines.SchedulersConfig()
+    sched_config = SchedulersConfig()
     sched_list =sched_config.available_schedulers
     return sched_list
 
 def select_scheduler(sched_name,model_path):
-    return pipelines_engines.SchedulersConfig().scheduler(sched_name,model_path)
+    return SchedulersConfig().scheduler(sched_name,model_path)
 
 def generate_click(model_drop,prompt_t0,neg_prompt_t0,sch_t0,image_t0,iter_t0,batch_t0,steps_t0,guid_t0,height_t0,width_t0,eta_t0,seed_t0,fmt_t0,strengh_t0):
     #from Engine.pipelines_engines import img2img_pipe
