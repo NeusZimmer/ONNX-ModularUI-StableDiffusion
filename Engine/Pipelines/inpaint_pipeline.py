@@ -5,8 +5,9 @@ import gc,json
 import numpy as np
 
 from Engine.General_parameters import Engine_Configuration
-from Engine.pipelines_engines import SchedulersConfig
-from Engine.pipelines_engines import seed_generator
+from Engine import SchedulersConfig
+#from Engine.pipelines_engines import SchedulersConfig
+from Engine.engine_common_funcs import seed_generator
 from Engine import Vae_and_Text_Encoders
 
 

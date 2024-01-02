@@ -1,19 +1,21 @@
 
 from Engine.General_parameters import Engine_Configuration
 from Engine import Vae_and_Text_Encoders
-from Engine.pipelines_engines import SchedulersConfig
+from Engine import SchedulersConfig
+#from Engine.pipelines_engines import SchedulersConfig
 import gc
 import numpy as np
 #optimum pipes
 from optimum.onnxruntime import ORTStableDiffusionPipeline
-from Engine.pipelines_engines import seed_generator
+from optimum.onnxruntime import ORTLatentConsistencyModelPipeline
+from Engine.engine_common_funcs import seed_generator
 
-class Borg3:
+class Borg_txt2img_pipe:
     _shared_state = {}
     def __init__(self):
         self.__dict__ = self._shared_state
 
-class txt2img_pipe(Borg3):
+class txt2img_pipe(Borg_txt2img_pipe):
     txt2img_pipe = None
     model = None
     running = False
@@ -23,7 +25,7 @@ class txt2img_pipe(Borg3):
 
  
     def __init__(self):
-        Borg3.__init__(self)
+        Borg_txt2img_pipe.__init__(self)
         self.latents_list = []
 
     def __str__(self): 
@@ -31,13 +33,6 @@ class txt2img_pipe(Borg3):
         return json.dumps(self.__dict__)
 
     def reinitialize(self,model_path):
-        from Engine.General_parameters import Engine_Configuration as en_config
-
-        """if " " in Engine_Configuration().MAINPipe_provider:
-            provider =eval(Engine_Configuration().MAINPipe_provider)
-        else:
-            provider =Engine_Configuration().MAINPipe_provider"""
-
         provider=Engine_Configuration().MAINPipe_provider['provider']
         provider_options=Engine_Configuration().MAINPipe_provider['provider_options']
 
@@ -53,7 +48,6 @@ class txt2img_pipe(Borg3):
         OnnxStableDiffusionPipeline.__call__ =  txt2img_pipe_sub.__call__
 
         return self.txt2img_pipe.unet
-
 
     def Convert_from_hires_txt2img(self,hirestxt_pipe,model_path,sched_name):
         import onnxruntime as ort
@@ -96,7 +90,7 @@ class txt2img_pipe(Borg3):
         return sess_options
 
     def initialize(self,model_path,sched_name):
-        #from Engine.General_parameters import Engine_Configuration as en_config
+        from Engine.General_parameters import Engine_Configuration as en_config
         if Vae_and_Text_Encoders().text_encoder == None:
             Vae_and_Text_Encoders().load_textencoder(model_path)
         if Vae_and_Text_Encoders().vae_decoder == None:
@@ -104,43 +98,60 @@ class txt2img_pipe(Borg3):
 
         provider=Engine_Configuration().MAINPipe_provider['provider']
         provider_options=Engine_Configuration().MAINPipe_provider['provider_options']
-
+        
         if self.txt2img_pipe == None:
+            self.lcm_model= False
             from optimum.onnxruntime.modeling_ort import ORTModel
             from Engine.engine_common_funcs import load_tokenizer_and_config
 
             print(f"Loading Txt2Img Unet session in [{provider}] with options:{provider_options}")            
             unet_session = ORTModel.load_model(model_path+"/unet/model.onnx", provider,self.configure_sess_options(), provider_options=provider_options)
             tokenizer,config=load_tokenizer_and_config(model_path)  
+            #self.lcm_model= True if ("lcm_onnx" in model_path) else False #find a better solution 
 
-            self.txt2img_pipe = ORTStableDiffusionPipeline(
-                unet_session=unet_session,
-                vae_decoder_session= Vae_and_Text_Encoders().vae_decoder,
-                text_encoder_session= Vae_and_Text_Encoders().text_encoder,
-                vae_encoder_session=None,
-                tokenizer=tokenizer,
-                config=config,
-                scheduler=SchedulersConfig().scheduler(sched_name,model_path)
-            )
+            for input in unet_session.get_inputs():
+                if ('timestep_cond'==input.name):
+                    self.lcm_model= True
+            
+            if self.lcm_model:
+                self.txt2img_pipe = ORTLatentConsistencyModelPipeline(
+                    unet_session=unet_session,
+                    vae_decoder_session= Vae_and_Text_Encoders().vae_decoder,
+                    text_encoder_session= Vae_and_Text_Encoders().text_encoder,
+                    vae_encoder_session=None,
+                    tokenizer=tokenizer,
+                    config=config,
+                    scheduler=SchedulersConfig().scheduler(sched_name,model_path)
+                )
+            else:
+                self.txt2img_pipe = ORTStableDiffusionPipeline(
+                    unet_session=unet_session,
+                    vae_decoder_session= Vae_and_Text_Encoders().vae_decoder,
+                    text_encoder_session= Vae_and_Text_Encoders().text_encoder,
+                    vae_encoder_session=None,
+                    tokenizer=tokenizer,
+                    config=config,
+                    scheduler=SchedulersConfig().scheduler(sched_name,model_path)
+                )
+
+                #Comentar 3 siguientes para lcm
+            import functools
+            from Engine import lpw_pipe
+            self.txt2img_pipe._encode_prompt = functools.partial(lpw_pipe._encode_prompt, self.txt2img_pipe)
+            """from Engine import txt2img_pipe_sub
+            self.txt2img_pipe.__call__ = functools.partial(txt2img_pipe_sub.__call__, self.txt2img_pipe)
+            #OnnxStableDiffusionPipeline.__call__ =  txt2img_pipe_sub.__call__
+            ORTStableDiffusionPipeline.__call__ =  txt2img_pipe_sub.__call__"""
         else:
              self.txt2img_pipe.scheduler=SchedulersConfig().scheduler(sched_name,model_path)
 
-
-
-        import functools
-        from Engine import lpw_pipe
-        self.txt2img_pipe._encode_prompt = functools.partial(lpw_pipe._encode_prompt, self.txt2img_pipe)
-        """from Engine import txt2img_pipe_sub
-        self.txt2img_pipe.__call__ = functools.partial(txt2img_pipe_sub.__call__, self.txt2img_pipe)
-        #OnnxStableDiffusionPipeline.__call__ =  txt2img_pipe_sub.__call__
-        ORTStableDiffusionPipeline.__call__ =  txt2img_pipe_sub.__call__"""
         return self.txt2img_pipe
 
     def create_seeds(self,seed=None,iter=1,same_seeds=False):
         self.seeds=seed_generator(seed,iter)
         if same_seeds:
-            for seed in seeds:
-                seed = seeds[0]
+            for seed in self.seeds:
+                seed = self.seeds[0]
 
 
 
@@ -335,23 +346,39 @@ class txt2img_pipe(Borg3):
         if running_config().Running_information["Load_Latents"]:
             loaded_latent=self.get_initial_latent(steps,multiplier,rng,strengh)
         prompt_embeds0 = None
-
-        batch_images = self.txt2img_pipe(
-            prompt=prompt,
-            negative_prompt=neg_prompt,
-            height=height,
-            width=width,
-            num_inference_steps=steps,
-            guidance_scale=guid,
-            eta=eta,
-            num_images_per_prompt=batch,
-            prompt_embeds = prompt_embeds0,
-            negative_prompt_embeds = None,
-            latents=loaded_latent,
-            callback= self.__callback,
-            callback_steps = running_config().Running_information["Callback_Steps"],
-            generator=rng).images
-
+        if self.lcm_model:
+            batch_images = self.txt2img_pipe(
+                prompt=prompt,
+                #negative_prompt=neg_prompt,
+                height=height,
+                width=width,
+                num_inference_steps=steps,
+                guidance_scale=guid,
+                #eta=eta,
+                num_images_per_prompt=batch,
+                #prompt_embeds = prompt_embeds0,
+                #negative_prompt_embeds = None,
+                #latents=loaded_latent,
+                callback= self.__callback,
+                callback_steps = running_config().Running_information["Callback_Steps"],
+                generator=rng).images
+        else:
+            batch_images = self.txt2img_pipe(
+                prompt=prompt,
+                negative_prompt=neg_prompt,
+                height=height,
+                width=width,
+                num_inference_steps=steps,
+                guidance_scale=guid,
+                eta=eta,
+                num_images_per_prompt=batch,
+                prompt_embeds = prompt_embeds0,
+                negative_prompt_embeds = None,
+                latents=loaded_latent,
+                callback= self.__callback,
+                callback_steps = running_config().Running_information["Callback_Steps"],
+                generator=rng).images
+            
         dictio={'prompt':prompt,'neg_prompt':neg_prompt,'height':height,'width':width,'steps':steps,'guid':guid,'eta':eta,'batch':batch,'seed':seed,'strengh':strengh}
         from Engine.General_parameters import running_config
         if running_config().Running_information["Save_Latents"]:

@@ -8,7 +8,9 @@ from Engine.General_parameters import (
 
 from Engine.engine_common_funcs import load_tokenizer_and_config,seed_generator
 from Engine import Vae_and_Text_Encoders
-from Engine.pipelines_engines import SchedulersConfig
+from Engine import SchedulersConfig
+#from Engine.pipelines_engines import SchedulersConfig
+
 
 from Engine.pipeline_onnx_stable_diffusion_controlnet import OnnxStableDiffusionControlNetPipeline
 

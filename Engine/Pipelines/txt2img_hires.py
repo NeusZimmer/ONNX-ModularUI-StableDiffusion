@@ -1,10 +1,9 @@
-#from sched import scheduler
 from Engine.General_parameters import Engine_Configuration
+from Engine import SchedulersConfig
 from Engine import Vae_and_Text_Encoders
-from Engine.pipelines_engines import SchedulersConfig
-from own_pipes.pipeline_onnx_stable_diffusion_hires_txt2img import OnnxOptimumStableDiffusionHiResPipeline
+from Engine.engine_common_funcs import create_generator,seed_generator
 
-import gc
+from own_pipes.pipeline_onnx_stable_diffusion_hires_txt2img import OnnxOptimumStableDiffusionHiResPipeline
 import numpy as np
 
 """from diffusers.utils import randn_tensor"""
@@ -13,19 +12,19 @@ import numpy as np
 
 
 
-class Borg10:
+class Borg_hires:
     _shared_state = {}
     def __init__(self):
         self.__dict__ = self._shared_state
 
-class txt2img_hires_pipe(Borg10):
+class txt2img_hires_pipe(Borg_hires):
     hires_pipe = None
     model = None
     seeds = []
     latents_list = []
 
     def __init__(self):
-        Borg10.__init__(self)
+        Borg_hires.__init__(self)
     def __str__(self): 
         import json
         return json.dumps(self.__dict__)
@@ -37,11 +36,9 @@ class txt2img_hires_pipe(Borg10):
         sess_options.enable_cpu_mem_arena=False
         sess_options.enable_mem_reuse= True
         sess_options.enable_mem_pattern = True
-
         #sess_options.execution_mode = ort.ExecutionMode.ORT_PARALLEL
 
         if self.hires_pipe == None:
-            #from Engine.General_parameters import Engine_Configuration as en_config
             if Vae_and_Text_Encoders().text_encoder == None:
                 Vae_and_Text_Encoders().load_textencoder(model_path)
             if Vae_and_Text_Encoders().vae_decoder == None:
@@ -49,21 +46,12 @@ class txt2img_hires_pipe(Borg10):
             if Vae_and_Text_Encoders().vae_encoder == None:
                 Vae_and_Text_Encoders().load_vaeencoder(model_path)
 
-
-            """if " " in Engine_Configuration().MAINPipe_provider:
-                provider =eval(Engine_Configuration().MAINPipe_provider)
-            else:
-                provider =Engine_Configuration().MAINPipe_provider"""
-            
             provider=Engine_Configuration().MAINPipe_provider['provider']
             provider_options=Engine_Configuration().MAINPipe_provider['provider_options']
-
-
             low_res_provider=Engine_Configuration().LowResPipe_provider['provider']
             low_res_provider_options=Engine_Configuration().LowResPipe_provider['provider_options']
 
             self.hires_pipe = OnnxOptimumStableDiffusionHiResPipeline(
-            #self.hires_pipe = OnnxOptimumStableDiffusionHiResPipeline.from_pretrained(
                 model_path,
                 provider=provider,
                 scheduler=SchedulersConfig().scheduler(sched_name,model_path),
@@ -79,31 +67,9 @@ class txt2img_hires_pipe(Borg10):
         else:
             self.hires_pipe.scheduler=SchedulersConfig().scheduler(sched_name,model_path)
 
-
-
-        """
-                vae_decoder_session: ort.InferenceSession,
-                text_encoder_session: ort.InferenceSession,
-                unet_session: ort.InferenceSession,
-                config: Dict[str, Any],
-                tokenizer: CLIPTokenizer,
-                scheduler: Union[DDIMScheduler, PNDMScheduler, LMSDiscreteScheduler],
-                feature_extractor: Optional[CLIPFeatureExtractor] = None,
-                vae_encoder_session: Optional[ort.InferenceSession] = None,
-                text_encoder_2_session: Optional[ort.InferenceSession] = None,
-                tokenizer_2: Optional[CLIPTokenizer] = None,
-                use_io_binding: Optional[bool] = None,
-                model_save_dir: Optional[Union[str, Path, TemporaryDirectory]] = None,
-                requires_safety_checker: bool = True,
-        """
-
-
-
         import functools
         from Engine import lpw_pipe
         self.hires_pipe._encode_prompt = functools.partial(lpw_pipe._encode_prompt, self.hires_pipe)
-
-
         return self.hires_pipe
 
     def Convert_from_txt2img(self,txt_pipe,model_path,sched_name):
@@ -145,7 +111,8 @@ class txt2img_hires_pipe(Borg10):
 
         return self.hires_pipe
 
-
+    def use_hires_as_lowres(self):
+        self.hires_pipe.use_hires_as_lowres()
 
     def reload_partial_model(self,model_path,LowHigh=None):
         if LowHigh!=None:
@@ -155,7 +122,7 @@ class txt2img_hires_pipe(Borg10):
             sess_options.enable_cpu_mem_arena=False
             sess_options.enable_mem_reuse= True
             sess_options.enable_mem_pattern = True
-            #from Engine.General_parameters import Engine_Configuration as en_config
+
             if Vae_and_Text_Encoders().text_encoder == None:
                 Vae_and_Text_Encoders().load_textencoder(model_path)
             if Vae_and_Text_Encoders().vae_decoder == None:
@@ -194,18 +161,21 @@ class txt2img_hires_pipe(Borg10):
         gc.collect()
 
     def create_seeds(self,seed=None,iter=1,same_seeds=False):
-        self.seeds=self.seed_generator(seed,iter)
+        self.seeds=seed_generator(seed,iter)
         if same_seeds:
             for seed in self.seeds:
                 seed = self.seeds[0]
 
     def unload_from_memory(self):
+        import gc
         self.hires_pipe= None
         self.model = None
         self.latents_list = None
         gc.collect()
 
-    def seed_generator(self,seed,iteration_count):
+
+    ########### DELETE THIS FUNCTION
+    def seed_generator1(self,seed,iteration_count):
         import numpy as np
         # generate seeds for iterations
         
@@ -231,61 +201,7 @@ class txt2img_hires_pipe(Borg10):
             seeds = np.concatenate((seeds, seed_seq.generate_state(iteration_count - len(seeds)))) # era restar 1
 
         return seeds[:iteration_count]
-
-    def run_inference(self,prompt,neg_prompt,hires_passes,height,width,hires_height,hires_width,steps,hires_steps,guid,eta,batch,seed,strength,strength_var,upscale_method):
-        import numpy as np
-        from Engine.General_parameters import running_config
-
-        rng = np.random.RandomState(seed)
-        prompt.strip("\n")
-        neg_prompt.strip("\n")
-        multiplier=1
-        #strengh=0.8  #no usado?
-        hires_steps=int(hires_steps/strength)
-        if running_config().Running_information["Load_Latents"]:
-            #loaded_latent=self.get_initial_latent(steps,multiplier,rng,strengh)
-            loaded_latent=self.get_initial_latent(steps,multiplier,rng,strength)            
-        else:
-            loaded_latent=None
-
-        upscale_method = True if upscale_method=="Torch" else False
-
-        lowres_image,hires_image = self.hires_pipe(
-            prompt=prompt,
-            negative_prompt=neg_prompt,
-            height=height,
-            width=width,
-            hires_height=hires_height,
-            hires_width=hires_width,            
-            num_inference_steps=steps,
-            num_hires_steps=hires_steps,
-            guidance_scale=guid,
-            eta=eta,
-            num_images_per_prompt=batch,
-            prompt_embeds = None,
-            negative_prompt_embeds = None,
-            latents=loaded_latent,
-            strength=strength,
-            strength_var=strength_var,
-            hires_steps=hires_passes,
-            #callback= self.__callback,
-            #callback_steps = running_config().Running_information["Callback_Steps"],
-            #generator=rng).images
-            generator=rng,
-            upscale_method=upscale_method
-            )
-
-        dictio={'prompt':prompt,'neg_prompt':neg_prompt,'height':height,'width':width,'steps':steps,'guid':guid,'eta':eta,'batch':batch,'seed':seed}
-        from Engine.General_parameters import running_config
-
-        return lowres_image,hires_image,dictio
-    
-
-
-
-
-
-    
+   
     def get_ordered_latents(self):
         from Engine.General_parameters import running_config
         import numpy as np
@@ -450,4 +366,56 @@ class txt2img_hires_pipe(Borg10):
             bottom = top + height
             input_image = input_image.crop((0, top, width, bottom))
         return input_image
-    
+
+    ################# MAIN CALL FOR INFERENCE #################
+    #Cambiar la entrada a un diccionario?
+
+    def run_inference(self,prompt,neg_prompt,hires_passes,height,width,hires_height,hires_width,steps,hires_steps,guid,eta,batch,seed,strength,strength_var,upscale_method,output_format):
+        import numpy as np
+        from Engine.General_parameters import running_config
+
+        rng = create_generator(int(seed),generator_type='torch')
+        #rng = create_generator(int(seed),generator_type='numpy')
+        prompt.strip("\n")
+        neg_prompt.strip("\n")
+
+        var=self.hires_pipe.scheduler.__str__()[0:12]
+        if not ('LCMScheduler' in var):
+            hires_steps=int(hires_steps/strength)
+
+        if running_config().Running_information["Load_Latents"]:
+            multiplier=1 #no usado?
+            loaded_latent=self.get_initial_latent(steps,multiplier,rng,strength)            
+        else:
+            loaded_latent=None
+
+        lowres_image,hires_images = self.hires_pipe(
+            prompt=prompt,
+            negative_prompt=neg_prompt,
+            height=height,
+            width=width,
+            hires_height=hires_height,
+            hires_width=hires_width,            
+            num_inference_steps=steps,
+            num_hires_steps=hires_steps,
+            guidance_scale=guid,
+            eta=eta,
+            num_images_per_prompt=batch,
+            prompt_embeds = None,
+            negative_prompt_embeds = None,
+            latents=loaded_latent,
+            output_type= output_format,
+            strength=strength,
+            strength_var=strength_var,
+            hires_steps=hires_passes,
+            #callback= self.__callback,
+            #callback_steps = running_config().Running_information["Callback_Steps"],
+            generator=rng,
+            upscale_method=upscale_method
+            )
+
+        #dictio={'prompt':prompt,'neg_prompt':neg_prompt,'height':height,'width':width,'steps':steps,'guid':guid,'eta':eta,'batch':batch,'seed':seed}
+
+        #return lowres_image,hires_images,dictio  #WARNING:they could be pil or latents, depending on the requested format
+        return lowres_image,hires_images  #WARNING:they could be pil or latents, depending on the requested format
+ 

@@ -1,9 +1,9 @@
 #from sched import scheduler
+#from Engine.pipelines_engines import SchedulersConfig
 from Engine.General_parameters import Engine_Configuration
 from Engine import Vae_and_Text_Encoders
-
-from Engine.pipelines_engines import SchedulersConfig
-from Engine.pipelines_engines import seed_generator
+from Engine import SchedulersConfig
+from Engine.engine_common_funcs import seed_generator
 
 #optimum pipes
 from optimum.onnxruntime import ORTStableDiffusionImg2ImgPipeline
@@ -15,18 +15,18 @@ import numpy as np
 
 
 
-class Borg5:
+class Borg_img2img:
     _shared_state = {}
     def __init__(self):
         self.__dict__ = self._shared_state
 
 
-class img2img_pipe(Borg5):
+class img2img_pipe(Borg_img2img):
     img2img_pipe = None
     model = None
     seeds = []
     def __init__(self):
-        Borg5.__init__(self)
+        Borg_img2img.__init__(self)
 
     def __str__(self): return json.dumps(self.__dict__)
 

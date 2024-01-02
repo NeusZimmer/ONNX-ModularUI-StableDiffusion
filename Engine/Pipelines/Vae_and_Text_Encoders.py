@@ -1,4 +1,5 @@
 from optimum.onnxruntime.modeling_ort import ORTModel
+from optimum.onnxruntime.modeling_diffusion import ORTModelVaeDecoder,ORTModelVaeEncoder,ORTModelTextEncoder
 from Engine.General_parameters import Engine_Configuration
 
 import json
@@ -66,6 +67,15 @@ class Vae_and_Text_Encoders(Borg1):
         from optimum.onnxruntime.modeling_diffusion import ORTModelVaeDecoder
         return ORTModelVaeDecoder(vaedecoder_session,parent_model=None)"""
 
+    def convert_session_to_model(self,session,model):
+        if model=="vaedec":
+            model=ORTModelVaeDecoder(session,None)
+        elif model=="textenc":
+            model=ORTModelTextEncoder(session,None)
+        elif model=="vaeenc":
+            model=ORTModelVaeEncoder(session,None)
+        return model
+        
 
     def load_vaeencoder(self,model_path,old_version=False):
         from Engine.General_parameters import running_config        
