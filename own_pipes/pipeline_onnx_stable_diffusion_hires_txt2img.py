@@ -35,6 +35,7 @@ from transformers import CLIPFeatureExtractor, CLIPTokenizer, AutoConfig
 from optimum.onnxruntime import ORTStableDiffusionPipeline
 import onnxruntime as ort
 from optimum.onnxruntime.modeling_ort import ORTModel
+from optimum.onnxruntime import ORTLatentConsistencyModelPipeline
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -70,6 +71,7 @@ def preprocess(image):
 
 
 class OnnxOptimumStableDiffusionHiResPipeline(ORTStableDiffusionPipeline):
+    low_unet_session_lcm_model= False
     r"""
         TODO
     """
@@ -95,10 +97,19 @@ class OnnxOptimumStableDiffusionHiResPipeline(ORTStableDiffusionPipeline):
         low_res_provider:Optional[str] = None,
         low_res_provider_options:Optional[str] = None,
         ):
-        self.low_unet_session=None
-        self.unet=None
+        #self.low_unet_session=None
+        #self.unet=None
+
+        try:
+            del self.low_unet_session
+        except:pass
+        try:            
+            del self.unet
+        except:pass
+
         model_name=(low_res_model_path.split('\\'))[-1]
-        print(f"loading Low-Res Model:{model_name}.... ", end='')
+        print(f"loading Low-Res Model:{model_name}.... ")
+        #print(f"loading Low-Res Model:{model_name}.... ", end='')
         low_unet_session = ORTModel.load_model(low_res_model_path+"/unet/model.onnx", low_res_provider,sess_options, provider_options=low_res_provider_options)
         tokenizer2,config2=load_config_and_tokenizer(low_res_model_path)
         super().__init__(
@@ -120,11 +131,26 @@ class OnnxOptimumStableDiffusionHiResPipeline(ORTStableDiffusionPipeline):
         sess_options: Optional[ort.SessionOptions] = None,
         provider_options: Optional[dict] = None,
         ):
+        high_as_low=False
+        if self.unet_session==self.low_unet_session:
+            high_as_low=True
+            try:            
+                del self.low_unet_session
+            except:pass
 
-        self.unet_session=None
-        self.unet=None        
+        #self.unet_session=None
+        #self.unet=None        
+        try:
+            del self.unet_session
+        except:pass
+        try:            
+            del self.unet
+        except:pass
+
+
         model_name=(model_path.split('\\'))[-1]
-        print(f"loading Hi-Res Model:{model_name} ....", end='')
+        print(f"loading Hi-Res Model:{model_name} ....")
+        #print(f"loading Hi-Res Model:{model_name} ....", end='')
         unet_session = ORTModel.load_model(model_path+"/unet/model.onnx", provider,sess_options, provider_options=provider_options)
 
         tokenizer,config=load_config_and_tokenizer(model_path)  
@@ -134,7 +160,22 @@ class OnnxOptimumStableDiffusionHiResPipeline(ORTStableDiffusionPipeline):
                     vae_encoder_session=vae_encoder_session,
                     )        
         self.unet_session=self.unet
+        if high_as_low:
+            self.low_unet_session=self.unet_session
+            
         print(f"Done")   
+
+    def use_hires_as_lowres(self):
+        try:
+            del self.low_unet_session
+        except:pass
+        try:
+            del self.unet
+        except:pass
+        #del self.low_unet_session
+        #del self.unet
+        self.low_unet_session=self.unet_session
+
 
 
     def __init__(
@@ -158,16 +199,34 @@ class OnnxOptimumStableDiffusionHiResPipeline(ORTStableDiffusionPipeline):
         low_res_provider_options:Optional[str] = None,
         ):
 
+        from diffusers import LCMScheduler
+        lcm_scheduler = LCMScheduler.from_pretrained(model_path, subfolder="scheduler",provider=provider)
+
         model_name=(model_path.split('\\'))[-1]
         print(f"loading Hi-Res Model:{model_name}")
         unet_session = ORTModel.load_model(model_path+"/unet/model.onnx", provider,sess_options, provider_options=provider_options)
-
         tokenizer,config=load_config_and_tokenizer(model_path)  
-        super().__init__(
-                    vae_decoder_session,text_encoder_session,unet_session,
-                    config, tokenizer, scheduler,
-                    vae_encoder_session=vae_encoder_session,
-                    )        
+        self.unet_session_lcm_model= False
+        for input in unet_session.get_inputs():
+            if ('timestep_cond'==input.name):
+                self.unet_session_lcm_model= True
+                
+        if self.unet_session_lcm_model:
+            self.unet = ORTLatentConsistencyModelPipeline(
+                unet_session=unet_session,
+                vae_decoder_session= vae_decoder_session,
+                text_encoder_session= text_encoder_session,
+                vae_encoder_session=vae_encoder_session,
+                tokenizer=tokenizer,
+                config=config,
+                scheduler=lcm_scheduler
+            )
+        else:
+            super().__init__(
+                vae_decoder_session,text_encoder_session,unet_session,
+                config, tokenizer, scheduler,
+                vae_encoder_session=vae_encoder_session,
+                )        
         self.unet_session=self.unet
 
 
@@ -176,20 +235,32 @@ class OnnxOptimumStableDiffusionHiResPipeline(ORTStableDiffusionPipeline):
             print(f"loading Low-Res Model:{model_name}")
             low_unet_session = ORTModel.load_model(low_res_model_path+"/unet/model.onnx", low_res_provider,sess_options, provider_options=low_res_provider_options)
             tokenizer2,config2=load_config_and_tokenizer(low_res_model_path)
-            super().__init__(
-                        vae_decoder_session,text_encoder_session,low_unet_session,
-                        config2, tokenizer2, scheduler,
-                        vae_encoder_session=vae_encoder_session,
-                        )
+            self.low_unet_session_lcm_model= False
+            for input in low_unet_session.get_inputs():
+                if ('timestep_cond'==input.name):
+                    self.low_unet_session_lcm_model= True
+
+            if self.low_unet_session_lcm_model:
+                self.unet = ORTLatentConsistencyModelPipeline(
+                    unet_session=low_unet_session,
+                    vae_decoder_session= vae_decoder_session,
+                    text_encoder_session= text_encoder_session,
+                    vae_encoder_session=vae_encoder_session,
+                    tokenizer=tokenizer2,
+                    config=config2,
+                    scheduler=lcm_scheduler
+                )
+            else:
+                super().__init__(
+                            vae_decoder_session,text_encoder_session,low_unet_session,
+                            config2, tokenizer2, scheduler,
+                            vae_encoder_session=vae_encoder_session,
+                            )
             self.low_unet_session=self.unet            
 
         else:
             print("Low_res = Hi-Res Model")
             self.low_unet_session = self.unet_session
-
-                  
-            
-
 
         if False: #borrar cuando funcione
             print("inicializacion hires")
@@ -442,9 +513,6 @@ class OnnxOptimumStableDiffusionHiResPipeline(ORTStableDiffusionPipeline):
                     f" {negative_prompt_embeds.shape}."
                 )
 
-    def __2call__(**args):
-        return
-    
     def __call__(
         self,
         prompt: Union[str, List[str]] = None,
@@ -463,41 +531,73 @@ class OnnxOptimumStableDiffusionHiResPipeline(ORTStableDiffusionPipeline):
         prompt_embeds: Optional[np.ndarray] = None,
         negative_prompt_embeds: Optional[np.ndarray] = None,
         output_type: Optional[str] = "pil",
-        return_dict: bool = True,
-        strength=0.8,
-        strength_var=0,
-        hires_steps=2,
-        provide_imgs_for_all_hires_steps=True,
+        return_dict: Optional[bool] = True,
+        strength: Optional[float]= 0.6,
+        strength_var: Optional[float]= 0,
+        hires_steps: Optional[int] =1,
+        provide_imgs_for_all_hires_steps: Optional[bool]=True,
         callback: Optional[Callable[[int, int, np.ndarray], None]] = None,
-        callback_steps: int = 1,
-        upscale_method: bool = True         #True= Torch, False=VAE
+        callback_steps: Optional[int] = 1,
+        upscale_method: Optional[str] = 'Torch',         #True= Torch, False=VAE
     ): 
         # check inputs. Raise error if not correct
         self.check_inputs_txt2img(prompt, height, width, callback_steps, negative_prompt, prompt_embeds, negative_prompt_embeds)
-    
+        
+        
+
         # here `guidance_scale` is defined analog to the guidance weight `w` of equation (2) of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf
         #`guidance_scale = 1`corresponds to doing no classifier free guidance.
         do_classifier_free_guidance = guidance_scale > 1.0
 
-        self.unet=self.unet_session
-        prompt_embeds2 = self._encode_prompt(
-            prompt,
-            num_images_per_prompt,
-            do_classifier_free_guidance,
-            negative_prompt,
-            prompt_embeds=prompt_embeds,
-            negative_prompt_embeds=negative_prompt_embeds,
-        )
+        output_latent=False if output_type=='pil' else True
+        if output_latent: 
+            self.vae_decoder=None
+            self.vae_decoder=None
 
-        self.unet=self.low_unet_session        
-        prompt_embeds1 = self._encode_prompt(
-            prompt,
-            num_images_per_prompt,
-            do_classifier_free_guidance,
-            negative_prompt,
-            prompt_embeds=prompt_embeds,
-            negative_prompt_embeds=negative_prompt_embeds,
-        )
+        #self.unet_session_lcm_model= False
+        #self.low_unet_session_lcm_model= False
+        if self.unet_session_lcm_model==False:
+            self.unet=self.unet_session
+            prompt_embeds2 = self._encode_prompt(
+                prompt,
+                num_images_per_prompt,
+                do_classifier_free_guidance,
+                negative_prompt,
+                prompt_embeds=prompt_embeds,
+                negative_prompt_embeds=negative_prompt_embeds,
+            )
+        else:
+            self.unet=self.unet_session
+            prompt_embeds2 = self._encode_prompt(
+                prompt,
+                num_images_per_prompt=batch_size,
+                do_classifier_free_guidance=do_classifier_free_guidance,
+                negative_prompt=None,
+                prompt_embeds=None,
+                negative_prompt_embeds=None,
+            )
+        prompt_embeds = prompt_embeds2
+
+        if self.low_unet_session_lcm_model==False:
+            self.unet=self.low_unet_session        
+            prompt_embeds1 = self._encode_prompt(
+                prompt,
+                num_images_per_prompt,
+                do_classifier_free_guidance,
+                negative_prompt,
+                prompt_embeds=prompt_embeds,
+                negative_prompt_embeds=negative_prompt_embeds,
+            )
+        else:
+            self.unet==self.low_unet_session 
+            prompt_embeds1 = self._encode_prompt(
+                prompt,
+                num_images_per_prompt=1,
+                do_classifier_free_guidance=False,
+                negative_prompt=None,
+                prompt_embeds=None,
+                negative_prompt_embeds=None,
+            )
         prompt_embeds = prompt_embeds1
         # define call parameters
         if prompt is not None and isinstance(prompt, str):
@@ -511,17 +611,17 @@ class OnnxOptimumStableDiffusionHiResPipeline(ORTStableDiffusionPipeline):
             generator = np.random
         #process_latent : if low-res is equal to high-res, avoid VAE postprocress for txt2img call and preprocess in img2img call
         process_latent=True if ((hires_height==height) and (hires_width==width)) else False
-
+        same_pipe= True if self.unet_session==self.low_unet_session else False
+        
         latent=latents
-        #if latent!=None:
         if type(latent) is np.ndarray:
             skip_to_img2img=True
             process_latent=True
         else:
             skip_to_img2img=False
         
-
-        if not process_latent:
+        do_denormalize =None
+        if not process_latent and same_pipe and (not (self.low_unet_session_lcm_model==True)):
             print("Warm up")
             self.unet=self.unet_session
             self.txt2img_call(
@@ -542,30 +642,44 @@ class OnnxOptimumStableDiffusionHiResPipeline(ORTStableDiffusionPipeline):
             )
         else:
             print(f"Skip warm-up")
-
         if not skip_to_img2img:
-            self.unet=self.low_unet_session
-            print("Low-Res Generation")
-            #image_result,latent=self.txt2img_call(
-            latent=self.txt2img_call(
-                height,
-                width,
-                num_inference_steps,
-                guidance_scale,
-                num_images_per_prompt,
-                eta,
-                generator,
-                prompt_embeds,
-                output_type,
-                return_dict,
-                batch_size,
-                do_classifier_free_guidance,
-                callback,
-                callback_steps,
-            )
-            seed2 = generator.randint(0,64000)    #If we keep the generator with the same seed as one in the lowres steps, the output will be noisy
-            generator = np.random.RandomState(seed2)
-            print("Cambiado el gen")
+            self.unet=self.low_unet_session 
+            if not self.low_unet_session_lcm_model==True:
+                print("Low-Res Generation")
+                #image_result,latent=self.txt2img_call(
+                latent=self.txt2img_call(
+                    height,
+                    width,
+                    num_inference_steps,
+                    guidance_scale,
+                    num_images_per_prompt,
+                    eta,
+                    generator,
+                    prompt_embeds,
+                    output_type,
+                    return_dict,
+                    batch_size,
+                    do_classifier_free_guidance,
+                    callback,
+                    callback_steps,
+                )
+                #seed2 = generator.randint(0,64000)    #If we keep the generator with the same seed as one in the lowres steps, the output will be noisy
+                #generator = np.random.RandomState(seed2)
+                do_denormalize1 = None
+            else:
+                #que hace si es un lcm
+                latent=self.lcm_txt2imgcall(
+                    prompt=prompt,
+                    height=height,
+                    width=width,
+                    num_inference_steps=num_inference_steps,
+                    original_inference_steps=num_inference_steps,
+                    guidance_scale=guidance_scale,
+                    num_images_per_prompt=1,
+                    generator=generator,
+                    prompt_embeds=prompt_embeds,
+                )
+                do_denormalize1 = [True] * latent.shape[0]
         else:
             print(f"Procesing latent")
         #return [self.output_to_numpy(latent)],[self.output_to_numpy(latent)]
@@ -573,32 +687,42 @@ class OnnxOptimumStableDiffusionHiResPipeline(ORTStableDiffusionPipeline):
         low_res_image=None
         latents_list=[]
         latents_list.append(latent)
-
+        
+        upscale_method = True if upscale_method=="Torch" else False
         if not process_latent:
-            if upscale_method:
-                #Mas rapido, pero resultado inicial queda demasiado borroso, imagen no usable, pero resultados similares en imagen final???
+            if upscale_method or output_latent:
+                #Upscale by Torch, faster, blurry initial result but similar results after hires
                 import torch.nn.functional as F
                 import torch.onnx
                 import torch
-                
                 latent1=torch.from_numpy(latent)
-                #latent1= F.upsample(latent1,(int(hires_height/8), int(hires_width/8)),mode='bilinear')
                 latent1= F.interpolate(latent1,size=(int(hires_height/8), int(hires_width/8)), mode='bilinear')
                 latent = latent1.numpy()
                 process_latent=True
                 image_resize=None
             else:
-                #Esto es lo original                
-                image_result=self.output_to_numpy(latent)
+                #Upscale by VAE
+                #image_result1=self.output_to_numpy(latent)
+                image_result=self.output_to_numpy(latent,do_denormalize1)
                 low_res_image=image_result
                 image_resize=self.resize_and_crop(image_result, hires_height, hires_width)
                 process_latent=False
-                #Faltaria aqui sacar del vae encoder una primera vez y unica. y dejar en los latents.
-
         else:
             image_resize=None
+
+        #return image_result,[image_result1]
+        # 
         self.unet=self.unet_session
         prompt_embeds = prompt_embeds2
+        #print(self.scheduler.__class__)
+        if ("heun" in str(self.scheduler.__class__).lower()) or ("kdpm" in str(self.scheduler.__class__).lower()) or ("lcms" in str(self.scheduler.__class__).lower()):
+            ######## ("lcm","Heun, KDPM2 or KDPM2-A will not work with this part of the pipeline , changed to UniPC", and increase the lowered guidance for lcm lora based models)
+            from Engine import SchedulersConfig
+            #SchedulersConfig()._scheduler_name="UniPC"
+            SchedulersConfig()._scheduler_name="DDPM_Parallel"
+            self.scheduler=SchedulersConfig().reload()
+            if ("lcms" in str(self.scheduler.__class__).lower()):
+                guidance_scale=6.0
         i=0
         while i<hires_steps:
             print(f"{i+1} Pass of Hi-Res Generation")   
@@ -630,27 +754,38 @@ class OnnxOptimumStableDiffusionHiResPipeline(ORTStableDiffusionPipeline):
             #seed2 = generator.randint(0,64000)    #If we keep the generator with the same seed as one in the lowres steps, the output will be noisy
             #generator = np.random.RandomState(seed2)
 
-        
-        images=[]
-        if low_res_image is not None:
-            images.append(low_res_image)
-        else:
-            images.append(self.output_to_numpy(latents_list[0]))
-        
-        
-        if provide_imgs_for_all_hires_steps:
-            for latent_img in latents_list[1:]:
-                #print("Decoding image")
-                result=self.output_to_numpy(latent_img)
+        if not output_latent:        
+            images=[]
+            if low_res_image is not None:
+                images.append(low_res_image)
+            else:
+                images.append(self.output_to_numpy(latents_list[0]))
+
+            if provide_imgs_for_all_hires_steps:
+                for latent_img in latents_list[1:]:
+                    #print("Decoding all images")
+                    result=self.output_to_numpy(latent_img)
+                    images.append(result)
+            else:             
+                #print("Decoding last image")
+                result=self.output_to_numpy(latents_list[-1])
                 images.append(result)
-        else:             
-            #for latent_img in [latents_list[0],latents_list[-1]]:
-                #print("Decoding low and last image")
-                #result=self.output_to_numpy(latent_img)
-            #print("Decoding last image")
-            result=self.output_to_numpy(latents_list[-1])
-            images.append(result)
-        return images[0],images[1:]
+            return images[0],images[1:]
+        else:
+            return latents_list[0],latents_list[1:]
+            """import os
+            path="./latents"
+            seed_number = str(generator.randint(0,64000))
+            np.save(f"{path}/Low_Res-{seed_number}.npy", np.array(latents_list[0]))
+            c=0
+            for image in  latents_list[1:]:
+                np.save(f"{path}/hires_img-{seed_number}_{c}.npy", np.array(image))
+                with open(os.path.join(path,f"hires_img-{seed_number}_{c}.txt"), 'w',encoding='utf8') as txtfile:
+                    txtfile.write(f"{prompt} \n{negative_prompt}")
+                c+=1
+            from PIL import Image
+            fake_image=np.ones([64,64,3],dtype=np.uint8)
+            return Image.fromarray(fake_image),[Image.fromarray(fake_image)]"""
 
     def change_model(self):
         from Engine.General_parameters import Engine_Configuration
@@ -687,9 +822,10 @@ class OnnxOptimumStableDiffusionHiResPipeline(ORTStableDiffusionPipeline):
         callback: Optional[Callable[[int, int, np.ndarray], None]] = None,
         callback_steps: int = 1,
     ):
-        
         num_inference_steps=num_hires_steps
         # set timesteps
+        #from Engine import SchedulersConfig
+        #self.scheduler=SchedulersConfig().reload()  #no cambia nada por recargarlo??? mirar que pasa a traves de img2img
         self.scheduler.set_timesteps(num_inference_steps)
         latents_dtype = prompt_embeds.dtype
 
@@ -746,6 +882,7 @@ class OnnxOptimumStableDiffusionHiResPipeline(ORTStableDiffusionPipeline):
 
         # add noise to latents using the timesteps
         noise = generator.randn(*init_latents.shape).astype(latents_dtype)
+
         init_latents = self.scheduler.add_noise(
             torch.from_numpy(init_latents), torch.from_numpy(noise), torch.from_numpy(timesteps)
         )
@@ -806,19 +943,19 @@ class OnnxOptimumStableDiffusionHiResPipeline(ORTStableDiffusionPipeline):
         return latents
 
 
-    def output_to_numpy(self,latents):
+    def output_to_numpy(self,latents,do_denormalize=None):
+        from optimum.pipelines.diffusers.pipeline_utils import VaeImageProcessor
         latents = 1 / 0.18215 * latents
         # image = self.vae_decoder(latent_sample=latents)[0]
         # it seems likes there is a strange result for using half-precision vae decoder if batchsize>1
         image = np.concatenate(
             [self.vae_decoder(latent_sample=latents[i : i + 1])[0] for i in range(latents.shape[0])]
         )
-
-        image = np.clip(image / 2 + 0.5, 0, 1)
-        image = image.transpose((0, 2, 3, 1))
-
-        #if output_type == "pil":
-        image = self.numpy_to_pil(image)
+        image = VaeImageProcessor().postprocess(image, output_type='pil', do_denormalize=do_denormalize)
+        #old approach,gives same results
+        #image = np.clip(image / 2 + 0.5, 0, 1)
+        #image = image.transpose((0, 2, 3, 1))
+        #image = self.numpy_to_pil(image)
 
         return image[0]  
 
@@ -1018,6 +1155,192 @@ class OnnxOptimumStableDiffusionHiResPipeline(ORTStableDiffusionPipeline):
             input_image = input_image.crop((0, top, width, bottom))
         return input_image
     
+
+
+
+    def lcm_txt2imgcall(
+        self,
+        prompt: Optional[Union[str, List[str]]] = None,
+        height: Optional[int] = None,
+        width: Optional[int] = None,
+        num_inference_steps: int = 4,
+        original_inference_steps: Optional[int] = None,
+        guidance_scale: float = 8.5,
+        num_images_per_prompt: int = 1,
+        generator: Optional[np.random.RandomState] = None,
+        prompt_embeds: Optional[np.array] = None,
+    ):
+
+        # Don't need to get negative prompts due to LCM guided distillation
+        #negative_prompt = None
+        #negative_prompt_embeds = None
+
+        # check inputs. Raise error if not correct
+        # define call parameters
+        batch_size = 1
+        #prompt_embeds = self.unet._encode_prompt(
+        """prompt_embeds = self._encode_prompt(
+            prompt,
+            num_images_per_prompt,
+            False,
+            negative_prompt,
+            negative_prompt_embeds=negative_prompt_embeds,
+        )"""
+
+        # set timesteps
+        self.unet.scheduler.set_timesteps(num_inference_steps, original_inference_steps=original_inference_steps)
+        timesteps = self.unet.scheduler.timesteps
+
+        latents = self.unet.prepare_latents(
+            batch_size * num_images_per_prompt,
+            self.unet.unet.config["in_channels"],
+            height,
+            width,
+            prompt_embeds.dtype,
+            generator,
+        )
+
+        bs = batch_size * num_images_per_prompt
+        # get Guidance Scale Embedding
+        w = np.full(bs, guidance_scale - 1, dtype=prompt_embeds.dtype)
+        w_embedding = self.unet.get_guidance_scale_embedding(
+            w, embedding_dim=self.unet.unet.config["time_cond_proj_dim"], dtype=prompt_embeds.dtype
+        )
+
+        # Adapted from diffusers to extend it for other runtimes than ORT
+        timestep_dtype = self.unet.unet.input_dtype.get("timestep", np.float32)
+
+        num_warmup_steps = len(timesteps) - num_inference_steps * self.unet.scheduler.order
+
+        for i, t in enumerate(self.unet.progress_bar(timesteps)):
+            timestep = np.array([t], dtype=timestep_dtype)
+            noise_pred = self.unet.unet(
+                sample=latents,
+                timestep=timestep,
+                encoder_hidden_states=prompt_embeds,
+                timestep_cond=w_embedding,
+            )[0]
+
+            # compute the previous noisy sample x_t -> x_t-1
+            latents, denoised = self.unet.scheduler.step(
+                torch.from_numpy(noise_pred), t, torch.from_numpy(latents), return_dict=False
+            )
+            latents, denoised = latents.numpy(), denoised.numpy()
+
+        return denoised
+
+
+    def lcm_img2imgcall(
+        self,
+        prompt: Union[str, List[str]] = None,
+        prompt_embeds: np.ndarray = None,
+        image: Union[np.ndarray, PIL.Image.Image] = None,
+        num_hires_steps: Optional[int] = 50,
+        guidance_scale: float = 7.5,
+        num_images_per_prompt: Optional[int] = 1,
+        generator: Optional[Union[torch.Generator, List[torch.Generator]]] = None,
+        batch_size=1,
+        strength: float = 0.8,
+        latent: Optional[np.ndarray] = None,
+        process_latent=False,
+        callback: Optional[Callable[[int, int, np.ndarray], None]] = None,
+        callback_steps: int = 1,
+    ):
+        self.unet._guidance_scale = guidance_scale
+        test=True
+        if test:
+            raise Exception("Sorry , still not implemented using full Latent Consistency Models for Refining")
+        num_inference_steps=num_hires_steps
+        # set timesteps
+        #from Engine import SchedulersConfig
+        self.scheduler.set_timesteps(num_inference_steps)
+        latents_dtype = prompt_embeds.dtype
+
+        if not process_latent:
+            image = self.unet.image_processor.preprocess(image)
+        else:
+            init_latents= latent
+
+
+        # 5. Prepare timesteps
+        timesteps, num_inference_steps = retrieve_timesteps(
+            self.unet.scheduler,
+            num_inference_steps,
+            timesteps,
+            original_inference_steps=original_inference_steps,
+            strength=strength,
+        )
+
+        # 6. Prepare latent variables
+        original_inference_steps = (
+            original_inference_steps
+            if original_inference_steps is not None
+            else self.unet.scheduler.config.original_inference_steps
+        )
+        latent_timestep = timesteps[:1]
+        latents = self.unet.prepare_latents(
+            image, latent_timestep, batch_size, num_images_per_prompt, prompt_embeds.dtype, generator
+        )
+        bs = batch_size * num_images_per_prompt
+
+        # 6. Get Guidance Scale Embedding
+        # NOTE: We use the Imagen CFG formulation that StableDiffusionPipeline uses rather than the original LCM paper
+        # CFG formulation, so we need to subtract 1 from the input guidance_scale.
+        # LCM CFG formulation:  cfg_noise = noise_cond + cfg_scale * (noise_cond - noise_uncond), (cfg_scale > 0.0 using CFG)
+        w = torch.tensor(self.unet.guidance_scale - 1).repeat(bs)
+        w_embedding = self.unet.get_guidance_scale_embedding(w, embedding_dim=self.unet.unet.config.time_cond_proj_dim)
+
+        # 7. Prepare extra step kwargs. TODO: Logic should ideally just be moved out of the pipeline
+        extra_step_kwargs = self.unet.prepare_extra_step_kwargs(generator, None)
+
+        # 8. LCM Multistep Sampling Loop
+        num_warmup_steps = len(timesteps) - num_inference_steps * self.unet.scheduler.order
+        self.unet._num_timesteps = len(timesteps)
+        with self.unet.progress_bar(total=num_inference_steps) as progress_bar:
+            for i, t in enumerate(timesteps):
+                latents = latents.to(prompt_embeds.dtype)
+
+                # model prediction (v-prediction, eps, x)
+                model_pred = self.unet.unet(
+                    latents,
+                    t,
+                    timestep_cond=w_embedding,
+                    encoder_hidden_states=prompt_embeds,
+                    cross_attention_kwargs=self.unet.cross_attention_kwargs,
+                    return_dict=False,
+                )[0]
+
+                # compute the previous noisy sample x_t -> x_t-1
+                latents, denoised = self.unet.scheduler.step(model_pred, t, latents, **extra_step_kwargs, return_dict=False)
+
+
+
+        denoised = denoised.to(prompt_embeds.dtype)
+        return denoised
+
+
+def retrieve_timesteps(
+    scheduler,
+    num_inference_steps: Optional[int] = None,
+    timesteps: Optional[List[int]] = None,
+    **kwargs,
+):
+    if timesteps is not None:
+        accepts_timesteps = "timesteps" in set(inspect.signature(scheduler.set_timesteps).parameters.keys())
+        if not accepts_timesteps:
+            raise ValueError(
+                f"The current scheduler class {scheduler.__class__}'s `set_timesteps` does not support custom"
+                f" timestep schedules. Please check whether you are using the correct scheduler."
+            )
+        scheduler.set_timesteps(timesteps=timesteps, **kwargs)
+        timesteps = scheduler.timesteps
+        num_inference_steps = len(timesteps)
+    else:
+        scheduler.set_timesteps(num_inference_steps, **kwargs)
+        timesteps = scheduler.timesteps
+    return timesteps, num_inference_steps
+
+
 def load_config_and_tokenizer(model_path):
         import json
         CONFIG_NAME="model_index.json"
