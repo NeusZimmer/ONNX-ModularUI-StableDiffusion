@@ -55,9 +55,10 @@ Python version: 3.10 ( tested, please feedback if you make it run in 3.11)
 Install requirements file:  
 ```pip install -r requirements.txt```
 
-Optional, for face restoration/swapping verssion
-```pip install -r additional_requirements.txt```
 
+Optional, for face restoration/swapping verssion ( recommended to be done next to finalizing the installation of the other and you check everything else is already working)
+```pip install -r additional_requirements.txt```
+In some cases, you may need to install VS c++ 14.0 build tool for insightface: https://aka.ms/vs/17/release/vs_BuildTools.exe 
 When finished, I recommend to reinstall again the onnxruntime package, only one of the listed below, according to your GPU vendor, sometimes it did not recognize the adecuate ExecutionProviders (i.e.DMLExecutionProvider) until this package is reinstalled"
  (Select this last package install according to onnx documentation for NVIDIA, Intel Vino, Mac...more info about what package you need to install: https://onnxruntime.ai/docs/install/#python-installs)
 
