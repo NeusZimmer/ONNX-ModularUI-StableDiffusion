@@ -1,20 +1,33 @@
 # ONNX-ModularUI-StableDiffusion
-This is the Optimum version of a UI for Stable Diffusion, running on ONNX models for faster inference, working on most common GPU vendors: NVIDIA,AMD GPU...as long as they got support into onnxruntime
+This is a working ONNX version of a UI for Stable Diffusion using optimum pipelines. Leveraging ONNX runtime environment for faster inference, working on most common GPU vendors: NVIDIA,AMD GPU...as long as they got support into onnxruntime
 
 
-Point to old version ( works up to diffusers 14.0):https://github.com/NeusZimmer/ONNX-Stable-Diffusion-ModularUI
-(TXT2IMG, HIRES-TXT2IMG, IMG2IMG, ControlNet, InstructPix, 3 approaches for face/image restoration, danbooru tagging ...and more)
-
-**Now including TXT2IMG, IMG2IMG,ControlNet, Inpaint and HIRES approach of TXT2IMG**
-
-
+**Now including TXT2IMG, IMG2IMG,ControlNet, Inpaint, HIRES approach of TXT2IMG and Latent Consistency**
 
 **Updates:**
+Jan 2024
+Added Latent Consistency pipelines and support for Txt2Img and as Low-Res Model for Hi-Res approach (LCM Scheduler to be selected if using)
+Move some tasks to modules approach
+Minor Bugs Solving & Details added
+Small tool to check latents directory (root:latent_to_pil.py)
 
+Dec 2023
 Added modules support
+Added Model Conversion interface (independent file in ConversionTool:ONNX-SD-ModelConverter.py)
 Added two models approach for hi-res pipeline.
-Added a working UI interface for model conversion, to ease the process.
-Added FaceRestoration module through faceswapping.
+Added facerestoration through faceswapping
+Added metadata strip and mask selection, independent file(root): IMG-Strip.py
+
+Nov 2023:
+Implemented ControlNet support
+Implemented img2img support
+Implemented inpaint support
+Implemented txt2img support
+Implemented hi-res txt2img support
+
+In dev  & Coming:
+Module: Library for models & saving favorite prompts (with seeds)
+
 
 Supporting: wildcards,pre-defined styles, latent import for hires-txt2img and txt2img inferences, HiRes supports using same or different models for low and hires inferences...
 Adapted version of my approach for a working version of stabble diffusion for onnx, able to run on low profile GPUs (also in high-profile), dedicated GPU memory needed:4Gb.
@@ -86,6 +99,9 @@ py ONNX-SD-ModelConverter.py
 ```
 And point your browser to localhost:7860
 
+
+Point to old version ( works up to diffusers 14.0):https://github.com/NeusZimmer/ONNX-Stable-Diffusion-ModularUI
+(TXT2IMG, HIRES-TXT2IMG, IMG2IMG, ControlNet, InstructPix, 3 approaches for face/image restoration, danbooru tagging ...and more)
 
 
 
