@@ -27,9 +27,9 @@ Implemented hi-res txt2img support
 
 In dev  & Coming:
 Module: Library for models & saving favorite prompts (with seeds)
+------------------------------------
 
-
-Supporting: wildcards,pre-defined styles, latent import for hires-txt2img and txt2img inferences, HiRes supports using same or different models for low and hires inferences...
+Already supported: wildcards,pre-defined styles, latent import for hires-txt2img and txt2img inferences, HiRes supports using same or different models for low and hires inferences...
 Adapted version of my approach for a working version of stabble diffusion for onnx, able to run on low profile GPUs (also in high-profile), dedicated GPU memory needed:4Gb.
 
 HiRes approach:
