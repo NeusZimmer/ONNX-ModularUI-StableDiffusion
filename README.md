@@ -1,5 +1,5 @@
 # ONNX-ModularUI-StableDiffusion
-This is a working ONNX version of a UI for Stable Diffusion using optimum pipelines. Leveraging ONNX runtime environment for faster inference, working on most common GPU vendors: NVIDIA,AMD GPU...as long as they got support into onnxruntime. Works on low profile 4Gb GPU cards.
+This is a working ONNX version of a UI for Stable Diffusion using optimum pipelines. Leveraging ONNX runtime environment for faster inference, working on most common GPU vendors: NVIDIA,AMD GPU...as long as they got support into onnxruntime. Works on low profile 4Gb GPU cards ( and also CPU only, but i did not tested its performance)
 
 
 **Now including TXT2IMG, IMG2IMG,ControlNet, Inpaint, HIRES approach of TXT2IMG and Latent Consistency**
