@@ -13,7 +13,7 @@ class generator(numpy.random.RandomState):
             import torch
             self.torch_gen = torch.Generator()
             self.torch_gen.manual_seed(self.seed)
-            self.randn=self.random
+            self.randn=self._random
             self.randint
 
     def randint(self,low,max):
@@ -22,7 +22,7 @@ class generator(numpy.random.RandomState):
         dato=torch.random(self.torch_gen,low,max)
         return dato
     
-    def random(self,*args):
+    def _random(self,*args):
     #def random(self,shape):
         shape=tuple(args)
         import torch
