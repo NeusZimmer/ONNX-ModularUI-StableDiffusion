@@ -374,8 +374,8 @@ class txt2img_hires_pipe(Borg_hires):
         import numpy as np
         from Engine.General_parameters import running_config
 
-        rng = create_generator(int(seed),generator_type='torch')
-        #rng = create_generator(int(seed),generator_type='numpy')
+        #rng = create_generator(int(seed),generator_type='torch')
+        rng = create_generator(int(seed),generator_type='numpy')
         prompt.strip("\n")
         neg_prompt.strip("\n")
 
